@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpenseTracker | Dashboard</title>
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            --primary: #4F46E5; /* Indigo */
+            --secondary: #10B981; /* Emerald for Income */
+            --danger: #EF4444; /* Red for Expense */
+            --bg-dark: #F3F4F6;
+            --text-dark: #1F2937;
+            --text-light: #6B7280;
+            --white: #FFFFFF;
+            --sidebar-width: 250px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+            height: 100vh;
+            display: flex;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--white);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            border-right: 1px solid #E5E7EB;
+            position: fixed;
+            height: 100%;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-light);
+            padding: 12px 15px;
+            display: block;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            transition: 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background-color: #EEF2FF;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* --- MAIN CONTENT --- */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 { font-size: 1.8rem; }
+        .user-profile { font-weight: 600; color: var(--text-light); }
+
+        /* --- DASHBOARD CARDS --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--white);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .card h3 {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+
+        .card .amount {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .text-success { color: var(--secondary); }
+        .text-danger { color: var(--danger); }
+
+        /* --- CHARTS & INPUT SECTION --- */
+        .grid-2-col {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: var(--white);
+            padding: 20px;
+            border-radius: 12px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #E5E7EB;
+        }
+
+        /* Quick Add Form */
+        .input-form {
+            background: var(--white);
+            padding: 25px;
+            border-radius: 12px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-primary:hover { background-color: #4338CA; }
+
+        /* --- TRANSACTIONS TABLE --- */
+        .table-container {
+            background: var(--white);
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th { text-align: left; color: var(--text-light); padding-bottom: 15px; }
+        td { padding: 12px 0; border-bottom: 1px solid #F3F4F6; }
+        
+        .category-tag {
+            background: #EEF2FF;
+            color: var(--primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo">
+            <span>📊</span> FinanceTrack
+        </div>
+        <nav class="nav-links">
+            <a href="#" class="active">Dashboard</a>
+            <a href="#">Transactions</a>
+            <a href="#">Accounts</a>
+            <a href="#">Reports</a>
+            <a href="#">Settings</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header>
+            <h1>Overview</h1>
+            <div class="user-profile">User: Alex</div>
+        </header>
+
+        <section class="stats-grid">
+            <div class="card">
+                <h3>Total Balance</h3>
+                <div class="amount">$12,450.00</div>
+            </div>
+            <div class="card">
+                <h3>Monthly Income</h3>
+                <div class="amount text-success">+$3,200.00</div>
+            </div>
+            <div class="card">
+                <h3>Monthly Expenses</h3>
+                <div class="amount text-danger">-$1,150.00</div>
+            </div>
+            <div class="card">
+                <h3>Savings Rate</h3>
+                <div class="amount">64%</div>
+            </div>
+        </section>
+
+        <section class="grid-2-col">
+            <div class="chart-container">
+                <p style="color: #9CA3AF;">[ Python Matplotlib Chart will be rendered here ]</p>
+            </div>
+
+            <div class="input-form">
+                <h3 style="margin-bottom: 15px;">Quick Add</h3>
+                <form action="/add_transaction" method="POST">
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select>
+                            <option>Food</option>
+                            <option>Transport</option>
+                            <option>Utilities</option>
+                            <option>Entertainment</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Note</label>
+                        <input type="text" placeholder="Description...">
+                    </div>
+                    <button type="submit" class="btn-primary">Add Transaction</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="table-container">
+            <h3>Recent Transactions</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Account</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Nov 17, 2025</td>
+                        <td>Grocery Store</td>
+                        <td><span class="category-tag">Food</span></td>
+                        <td>Bank (Checking)</td>
+                        <td class="text-danger">-$45.50</td>
+                    </tr>
+                    <tr>
+                        <td>Nov 16, 2025</td>
+                        <td>Freelance Payment</td>
+                        <td><span class="category-tag">Income</span></td>
+                        <td>PayPal</td>
+                        <td class="text-success">+$250.00</td>
+                    </tr>
+                    <tr>
+                        <td>Nov 15, 2025</td>
+                        <td>Netflix Subscription</td>
+                        <td><span class="category-tag">Entertainment</span></td>
+                        <td>Credit Card</td>
+                        <td class="text-danger">-$12.99</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+</body>
+</html>
