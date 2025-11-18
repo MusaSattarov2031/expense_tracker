@@ -23,14 +23,16 @@ def get_db_connection():
     url = urlparse(url_without_query)
     
     # 3. Establish connection
-    # NOTE: We manually add the required SSL configuration here for Aiven.
+    # NOTE: We now use the standard 'ssl' parameter set to True to force SSL encryption, 
+    # which is often required by cloud MySQL services like Aiven.
     return mysql.connector.connect(
         host=url.hostname,
         user=url.username,
         password=url.password,
         database=url.path[1:],
         port=url.port,
-        ssl_mode='REQUIRED'  # Passed as a separate keyword argument
+        ssl_verify_identity=True,  # Recommended security check
+        ssl_disabled=False         # Explicitly enable SSL/TLS encryption
     )
 #---Login Manager Setup---
 login_manager=LoginManager()
