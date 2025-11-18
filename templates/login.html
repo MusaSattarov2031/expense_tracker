@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | ExpenseTracker</title>
+    <style>
+        /* Shared Styles for Auth Pages */
+        :root {
+            --primary: #4F46E5; /* Indigo */
+            --secondary: #10B981; /* Emerald */
+            --bg-dark: #F3F4F6;
+            --text-dark: #1F2937;
+            --text-light: #6B7280;
+            --white: #FFFFFF;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .auth-card {
+            background: var(--white);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+        }
+        h2 { 
+            color: var(--primary); 
+            margin-bottom: 30px; 
+            font-size: 1.8rem;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #CFCFCF;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover { 
+            background-color: #4338CA; 
+        }
+        .link { 
+            margin-top: 20px; 
+            display: block; 
+            color: var(--text-light); 
+            text-decoration: none; 
+            font-size: 0.9rem;
+        }
+        .link:hover { 
+            color: var(--primary); 
+            text-decoration: underline;
+        }
+        .alert { 
+            color: #EF4444; /* Red */
+            background-color: #FEE2E2; /* Light Red BG */
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border: 1px solid #FCA5A5;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        <h2>FinanceTrack Login</h2>
+        
+        <!-- Flash Messages for Errors (e.g., Wrong Password) -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert">{{ messages[0] }}</div>
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('login') }}" method="POST">
+            <input type="text" name="username" placeholder="Username" required autocomplete="username">
+            <input type="password" name="password" placeholder="Password" required autocomplete="current-password">
+            <button type="submit" class="btn-primary">Secure Log In</button>
+        </form>
+        <a href="{{ url_for('register') }}" class="link">Don't have an account? Register here</a>
+    </div>
+</body>
+</html>
