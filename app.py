@@ -16,23 +16,21 @@ DB_URL= os.getenv("DATABASE_URL")#Fix since Git Push protection dont allow to pa
 
 
 def get_db_connection():
-    # 1. Split the URL to remove query parameters (like ?ssl-mode=REQUIRED)
+    # 1. Split the URL to remove query parameters
     url_without_query = DB_URL.split('?')[0]
     
     # 2. Parse the clean URL
     url = urlparse(url_without_query)
     
-    # 3. Establish connection
-    # NOTE: We now use the standard 'ssl' parameter set to True to force SSL encryption, 
-    # which is often required by cloud MySQL services like Aiven.
+    # 3. Establish connection using minimal SSL requirement
+    # We explicitly remove all unsupported custom SSL arguments and rely on 'ssl_disabled=False'
     return mysql.connector.connect(
         host=url.hostname,
         user=url.username,
         password=url.password,
         database=url.path[1:],
         port=url.port,
-        ssl_verify_identity=True,  # Recommended security check
-        ssl_disabled=False         # Explicitly enable SSL/TLS encryption
+        ssl_disabled=False  # Tells the connector to use SSL
     )
 #---Login Manager Setup---
 login_manager=LoginManager()
