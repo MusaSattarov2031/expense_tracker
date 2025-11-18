@@ -113,21 +113,6 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# --- TEMPORARY SETUP ROUTE (Run once then delete) ---
-@app.route('/init_db')
-def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INT AUTO_INCREMENT PRIMARY KEY,
-            username VARCHAR(50) NOT NULL UNIQUE,
-            password_hash VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    conn.commit()
-    conn.close()
-    return "Database Tables Created Successfully!"
+
 if __name__=='__main__':
     app.run(host="0.0.0.0", port=5000)
