@@ -39,13 +39,16 @@ def load_user(user_id):
 def seed_data(user_id):
     """Creates default Account and Categories if they don't exist."""
     conn = get_db_connection()
-    cursor = conn.cursor()
+    
+    # FIX: Add buffered=True to prevent 'Unread result found' errors
+    cursor = conn.cursor(buffered=True) 
     
     # 1. Create a default 'Cash' account
     cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (user_id,))
     if not cursor.fetchone():
         cursor.execute("INSERT INTO accounts (user_id, account_name, account_type, current_balance) VALUES (%s, 'Cash', 'Cash', 0)", (user_id,))
         cursor.execute("INSERT INTO accounts (user_id, account_name, account_type, current_balance) VALUES (%s, 'Bank', 'Bank', 0)", (user_id,))
+        conn.commit() # Commit changes immediately after inserting
 
     # 2. Create default Categories
     cursor.execute("SELECT * FROM categories WHERE user_id = %s", (user_id,))
@@ -53,9 +56,10 @@ def seed_data(user_id):
         defaults = [('Food', 'Expense'), ('Rent', 'Expense'), ('Salary', 'Income'), ('Fun', 'Expense')]
         for name, type in defaults:
             cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (user_id, name, type))
+        conn.commit() # Commit changes immediately after inserting
     
-    conn.commit()
-    conn.close()   
+    cursor.close()
+    conn.close()
 
 
 
