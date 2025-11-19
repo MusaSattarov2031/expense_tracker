@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpenseTracker | History</title>
+    <style>
+        /* Reuse Dashboard CSS */
+        :root {
+            --primary: #4F46E5; 
+            --secondary: #10B981; 
+            --danger: #EF4444; 
+            --bg-dark: #F3F4F6;
+            --text-dark: #1F2937;
+            --text-light: #6B7280;
+            --white: #FFFFFF;
+            --sidebar-width: 250px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-dark); height: 100vh; display: flex; }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--white);
+            display: flex; flex-direction: column; padding: 20px;
+            border-right: 1px solid #E5E7EB; position: fixed; height: 100%;
+        }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-bottom: 40px; }
+        .nav-links a { text-decoration: none; color: var(--text-light); padding: 12px 15px; display: block; border-radius: 8px; margin-bottom: 5px; transition: 0.3s; }
+        .nav-links a:hover, .nav-links a.active { background-color: #EEF2FF; color: var(--primary); font-weight: 600; }
+
+        /* Main Content */
+        .main-content { margin-left: var(--sidebar-width); flex: 1; padding: 30px; overflow-y: auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h1 { font-size: 1.8rem; }
+        .user-profile { font-weight: 600; color: var(--text-light); font-size: 1rem; }
+
+        /* Table Styles */
+        .table-container { background: var(--white); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; color: var(--text-light); padding-bottom: 15px; border-bottom: 2px solid #F3F4F6; }
+        td { padding: 15px 0; border-bottom: 1px solid #F3F4F6; }
+        .category-tag { background: #EEF2FF; color: var(--primary); padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 500;}
+        
+        .text-success { color: var(--secondary); font-weight: bold; }
+        .text-danger { color: var(--danger); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo"><span>📊</span> FinanceTrack</div>
+        <nav class="nav-links">
+            <!-- Links use url_for to find the Python route -->
+            <a href="{{ url_for('home') }}">Dashboard</a>
+            <a href="{{ url_for('transactions_page') }}" class="active">Transactions</a>
+            <a href="{{ url_for('logout') }}" style="color: #EF4444;">Logout</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header>
+            <h1>Transaction History</h1>
+            <div class="user-profile">{{ name }}</div>
+        </header>
+
+        <section class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Note</th>
+                        <th>Account</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td>{{ t.transaction_date }}</td>
+                        <td>{{ t.note }}</td>
+                        <td>{{ t.account_name }}</td>
+                        <td><span class="category-tag">{{ t.category_name }}</span></td>
+                        <!-- Logic to color Income green and Expenses red -->
+                        <td class="{{ 'text-success' if t.category_type == 'Income' else 'text-danger' }}">
+                            {{ '+' if t.category_type == 'Income' else '-' }}${{ t.amount }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+</body>
+</html>

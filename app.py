@@ -125,7 +125,17 @@ def add_transaction():
     
     flash("Transaction Added!")
     return redirect(url_for('home'))
-
+@app.route('/transactions')
+@login_required
+def transactions_page():
+    # 1. Fetch full transaction history for the current user
+    # We use the helper function we imported from database.py
+    transactions = get_user_transactions(current_user.id)
+    
+    # 2. Render the separate Transactions page
+    return render_template('transactions.html', 
+                           name=current_user.username, 
+                           transactions=transactions)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
