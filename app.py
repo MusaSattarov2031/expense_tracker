@@ -2,6 +2,7 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, flash 
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from database import get_db_connection, initialize_all_tables
 import mysql.connector
 from urllib.parse import urlparse
 
@@ -15,7 +16,7 @@ app.secret_key="MEN BU YERDE YA;ALMADIM" #Essential for security
 DB_URL= os.getenv("DATABASE_URL")#Fix since Git Push protection dont allow to pass a password placeholder
 
 
-def get_db_connection():
+'''def get_db_connection():
     # 1. Split the URL to remove query parameters
     url_without_query = DB_URL.split('?')[0]
     
@@ -31,7 +32,7 @@ def get_db_connection():
         database=url.path[1:],
         port=url.port,
         ssl_disabled=False  # Tells the connector to use SSL
-    )
+    )'''
 #---Login Manager Setup---
 login_manager=LoginManager()
 login_manager.init_app(app)
@@ -112,7 +113,26 @@ def register():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+@app.route('/init_db')
+def init_db():
+    if initialize_all_tables():
+        # You need to temporarily run the Users table creation as well, 
+        # as it was previously inside this route.
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(50) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        conn.close()
 
+        return "Database Tables (Users, Accounts, Categories, Transactions) Created Successfully!"
+    return "Database Initialization Failed. Check logs."
 
 if __name__=='__main__':
     app.run(host="0.0.0.0", port=5000)
