@@ -2,7 +2,7 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, flash 
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import get_db_connection, initialize_all_tables
+from database import get_db_connection, initialize_all_tables, get_user_transactions
 import mysql.connector
 from urllib.parse import urlparse
 
@@ -10,29 +10,6 @@ from urllib.parse import urlparse
 app=Flask(__name__)
 app.secret_key="MEN BU YERDE YA;ALMADIM" #Essential for security
 
-# --- DATABASE CONFIGURATION ---
-# This grabs the URL from Render's environment variables.
-# If running locally, replace the string below with your actual Aiven URL for testing.
-DB_URL= os.getenv("DATABASE_URL")#Fix since Git Push protection dont allow to pass a password placeholder
-
-
-'''def get_db_connection():
-    # 1. Split the URL to remove query parameters
-    url_without_query = DB_URL.split('?')[0]
-    
-    # 2. Parse the clean URL
-    url = urlparse(url_without_query)
-    
-    # 3. Establish connection using minimal SSL requirement
-    # We explicitly remove all unsupported custom SSL arguments and rely on 'ssl_disabled=False'
-    return mysql.connector.connect(
-        host=url.hostname,
-        user=url.username,
-        password=url.password,
-        database=url.path[1:],
-        port=url.port,
-        ssl_disabled=False  # Tells the connector to use SSL
-    )'''
 #---Login Manager Setup---
 login_manager=LoginManager()
 login_manager.init_app(app)
@@ -57,7 +34,28 @@ def load_user(user_id):
             return User(user_data['user_id'], user_data['username'], user_data['password_hash'])
     except Exception as e:
         print(f"DB Error: {e}")
-    return None        
+    return None     
+
+def seed_data(user_id):
+    """Creates default Account and Categories if they don't exist."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 1. Create a default 'Cash' account
+    cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (user_id,))
+    if not cursor.fetchone():
+        cursor.execute("INSERT INTO accounts (user_id, account_name, account_type, current_balance) VALUES (%s, 'Cash', 'Cash', 0)", (user_id,))
+        cursor.execute("INSERT INTO accounts (user_id, account_name, account_type, current_balance) VALUES (%s, 'Bank', 'Bank', 0)", (user_id,))
+
+    # 2. Create default Categories
+    cursor.execute("SELECT * FROM categories WHERE user_id = %s", (user_id,))
+    if not cursor.fetchone():
+        defaults = [('Food', 'Expense'), ('Rent', 'Expense'), ('Salary', 'Income'), ('Fun', 'Expense')]
+        for name, type in defaults:
+            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (user_id, name, type))
+    
+    conn.commit()
+    conn.close()   
 
 
 
@@ -65,7 +63,66 @@ def load_user(user_id):
 @app.route('/')
 @login_required
 def home():
-    return render_template("index.html", name=current_user.username)
+    # 1. Ensure user has basic categories/accounts setup
+    seed_data(current_user.id)
+
+    # 2. Fetch real transactions from DB
+    transactions = get_user_transactions(current_user.id)
+
+    # 3. Calculate Totals for the Cards
+    total_balance = 0
+    income = 0
+    expense = 0
+    
+    for t in transactions:
+        if t['category_type'] == 'Income':
+            income += t['amount']
+            total_balance += t['amount']
+        else:
+            expense += t['amount']
+            total_balance -= t['amount']
+
+    # 4. Fetch Accounts and Categories to fill the Dropdowns in the Form
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (current_user.id,))
+    accounts = cursor.fetchall()
+    cursor.execute("SELECT * FROM categories WHERE user_id = %s", (current_user.id,))
+    categories = cursor.fetchall()
+    conn.close()
+
+    return render_template('index.html', 
+                           name=current_user.username,
+                           transactions=transactions,
+                           total_balance=total_balance,
+                           income=income,
+                           expense=expense,
+                           accounts=accounts,
+                           categories=categories)
+@app.route('/add_transaction', methods=['POST'])
+@login_required
+def add_transaction():
+    # 1. Get data from HTML Form
+    amount = float(request.form.get('amount'))
+    category_id = request.form.get('category_id')
+    account_id = request.form.get('account_id')
+    note = request.form.get('note')
+    
+    # 2. Insert into DB
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO transactions (user_id, account_id, category_id, amount, transaction_date, note)
+        VALUES (%s, %s, %s, %s, NOW(), %s)
+    """, (current_user.id, account_id, category_id, amount, note))
+    
+    conn.commit()
+    conn.close()
+    
+    flash("Transaction Added!")
+    return redirect(url_for('home'))
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':

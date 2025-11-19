@@ -71,7 +71,26 @@ def initialize_all_tables():
             cursor.close()
             conn.close()
             
-
-#Run once to create a tables
-def creating():
-    pass
+def get_user_transactions(user_id):
+    """Fetches all transactions for a given user ID."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        # We join tables to get meaningful names instead of just IDs
+        query = """
+        SELECT t.*, a.account_name, c.name AS category_name, c.type AS category_type
+        FROM transactions t
+        JOIN accounts a ON t.account_id = a.account_id
+        JOIN categories c ON t.category_id = c.category_id
+        WHERE t.user_id = %s
+        ORDER BY t.transaction_date DESC;
+        """
+        cursor.execute(query, (user_id,))
+        transactions = cursor.fetchall()
+        return transactions
+    except Exception as e:
+        print(f"Error fetching transactions: {e}")
+        return []
+    finally:
+        if conn and conn.is_connected():
+            conn.close()            

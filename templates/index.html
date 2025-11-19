@@ -217,25 +217,25 @@
     <main class="main-content">
         <header>
             <h1>Overview</h1>
-            <div class="user-profile">User: Alex</div>
+            <div class="user-profile">User: {{ name }}</div>
         </header>
 
         <section class="stats-grid">
             <div class="card">
                 <h3>Total Balance</h3>
-                <div class="amount">$12,450.00</div>
+                <div class="amount">{{ total_balance }}</div>
             </div>
             <div class="card">
                 <h3>Monthly Income</h3>
-                <div class="amount text-success">+$3,200.00</div>
+                <div class="amount text-success">{{ income }}</div>
             </div>
             <div class="card">
                 <h3>Monthly Expenses</h3>
-                <div class="amount text-danger">-$1,150.00</div>
+                <div class="amount text-danger">{{ expense }}</div>
             </div>
             <div class="card">
                 <h3>Savings Rate</h3>
-                <div class="amount">64%</div>
+                <div class="amount">#developing stage#</div>
             </div>
         </section>
 
