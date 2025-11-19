@@ -202,15 +202,13 @@
 <body>
 
     <aside class="sidebar">
-        <div class="logo">
-            <span>📊</span> FinanceTrack
-        </div>
+        <div class="logo"><span>📊</span> FinanceTrack</div>
         <nav class="nav-links">
-            <a href="#" class="active">Dashboard</a>
-            <a href="#">Transactions</a>
-            <a href="#">Accounts</a>
-            <a href="#">Reports</a>
-            <a href="#">Settings</a>
+            <!-- active class is on Dashboard -->
+            <a href="{{ url_for('home') }}" class="active">Dashboard</a>
+            <!-- Updated Link -->
+            <a href="{{ url_for('transactions_page') }}">Transactions</a>
+            <a href="{{ url_for('logout') }}" style="color: #EF4444;">Logout</a>
         </nav>
     </aside>
 
