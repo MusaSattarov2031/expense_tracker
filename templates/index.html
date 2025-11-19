@@ -246,23 +246,35 @@
 
             <div class="input-form">
                 <h3 style="margin-bottom: 15px;">Quick Add</h3>
-                <form action="/add_transaction" method="POST">
+                <!-- Corrected Form with 'name' attributes -->
+                <form action="{{ url_for('add_transaction') }}" method="POST">
                     <div class="form-group">
                         <label>Amount</label>
-                        <input type="number" placeholder="0.00" step="0.01">
+                        <!-- IMPORTANT: name="amount" lets Python see the number -->
+                        <input type="number" name="amount" placeholder="0.00" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Account</label>
+                        <!-- IMPORTANT: name="account_id" -->
+                        <select name="account_id">
+                            {% for acc in accounts %}
+                                <option value="{{ acc.account_id }}">{{ acc.account_name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Category</label>
-                        <select>
-                            <option>Food</option>
-                            <option>Transport</option>
-                            <option>Utilities</option>
-                            <option>Entertainment</option>
+                        <!-- IMPORTANT: name="category_id" -->
+                        <select name="category_id">
+                            {% for cat in categories %}
+                                <option value="{{ cat.category_id }}">{{ cat.name }} ({{ cat.type }})</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Note</label>
-                        <input type="text" placeholder="Description...">
+                        <!-- IMPORTANT: name="note" -->
+                        <input type="text" name="note" placeholder="Description...">
                     </div>
                     <button type="submit" class="btn-primary">Add Transaction</button>
                 </form>
