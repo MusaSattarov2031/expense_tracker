@@ -182,7 +182,7 @@ def register():
 
 @app.route('/settings')
 @login_required
-def setting():
+def settings():
     return render_template("settings.html", name=current_user.username)
 
 @app.route('/add_account', methods=['POST'])
