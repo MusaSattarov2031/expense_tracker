@@ -30,6 +30,77 @@
         .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #E5E7EB; border-radius: 6px; outline: none; }
         .btn-primary { width: 100%; padding: 10px; background-color: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .alert { background-color: #D1FAE5; color: #065F46; padding: 10px; border-radius: 6px; margin-bottom: 20px; }
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 768px) {
+            /* 1. Move Sidebar to Bottom */
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: fixed;
+                bottom: 0;
+                top: auto; /* Reset top position */
+                flex-direction: row;
+                border-right: none;
+                border-top: 1px solid #E5E7EB;
+                padding: 10px;
+                z-index: 1000; /* Ensure it sits on top of content */
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            /* 2. Adjust Logo */
+            .logo {
+                font-size: 1.2rem;
+                margin-bottom: 0;
+                margin-right: 10px;
+                display: none; /* Optional: Hide logo on very small screens to save space */
+            }
+
+            /* 3. Spread Navigation Links Horizontally */
+            .nav-links {
+                display: flex;
+                flex-direction: row;
+                width: 100%;
+                justify-content: space-around;
+            }
+
+            .nav-links a {
+                margin-bottom: 0;
+                padding: 8px;
+                font-size: 0.9rem;
+                text-align: center;
+            }
+
+            /* 4. Expand Main Content */
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 15px;
+                padding-bottom: 80px; /* Add space at bottom so content isn't hidden behind nav bar */
+            }
+
+            /* 5. Stack Forms Vertically */
+            .grid-2-col {
+                grid-template-columns: 1fr; /* Force single column */
+            }
+
+            /* 6. Make Tables Scrollable */
+            .table-container {
+                overflow-x: auto; /* Allows table to scroll sideways if it's too wide */
+            }
+            
+            /* 7. Adjust Header for Filter */
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            header form {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
     </style>
 </head>
 <body>
