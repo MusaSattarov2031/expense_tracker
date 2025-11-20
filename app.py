@@ -265,6 +265,27 @@ def init_db():
 
         return "Database Tables (Users, Accounts, Categories, Transactions) Created Successfully!"
     return "Database Initialization Failed. Check logs."
+# app.py - Add this temporary migration route
+
+@app.route('/migrate_currency')
+@login_required
+def migrate_currency():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 1. Add 'default_currency' to Users table
+        cursor.execute("ALTER TABLE users ADD COLUMN default_currency VARCHAR(3) DEFAULT 'TRY'")
+        
+        # 2. Add 'currency' to Accounts table
+        cursor.execute("ALTER TABLE accounts ADD COLUMN currency VARCHAR(3) DEFAULT 'TRY'")
+        
+        conn.commit()
+        return "Migration Successful: Added currency columns!"
+    except Exception as e:
+        return f"Migration Failed (Maybe columns exist?): {e}"
+    finally:
+        conn.close()
 
 if __name__=='__main__':
     app.run(host="0.0.0.0", port=5000)
