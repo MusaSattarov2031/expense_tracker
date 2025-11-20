@@ -67,13 +67,23 @@ def seed_data(user_id):
 @app.route('/')
 @login_required
 def home():
-    # 1. Ensure user has basic categories/accounts setup
     seed_data(current_user.id)
 
-    # 2. Fetch real transactions from DB
-    transactions = get_user_transactions(current_user.id)
+    # 1. Get the filter from the URL (e.g., /?account_id=2)
+    filter_account_id = request.args.get('account_id')
 
-    # 3. Calculate Totals for the Cards
+    # 2. Fetch ALL transactions first
+    all_transactions = get_user_transactions(current_user.id)
+
+    # 3. Filter the list if a specific account is selected
+    if filter_account_id and filter_account_id != 'all':
+        # We use str() because URL parameters are always strings
+        transactions = [t for t in all_transactions if str(t['account_id']) == filter_account_id]
+    else:
+        transactions = all_transactions
+        filter_account_id = 'all' # Default state
+
+    # 4. Calculate Totals based on the FILTERED list
     total_balance = 0
     income = 0
     expense = 0
@@ -86,7 +96,7 @@ def home():
             expense += t['amount']
             total_balance -= t['amount']
 
-    # 4. Fetch Accounts and Categories to fill the Dropdowns in the Form
+    # 5. Fetch Accounts/Categories for dropdowns
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (current_user.id,))
@@ -97,12 +107,14 @@ def home():
 
     return render_template('index.html', 
                            name=current_user.username,
-                           transactions=transactions,
+                           transactions=transactions, # This is now the filtered list
                            total_balance=total_balance,
                            income=income,
                            expense=expense,
                            accounts=accounts,
-                           categories=categories)
+                           categories=categories,
+                           selected_account_id=filter_account_id)
+
 @app.route('/add_transaction', methods=['POST'])
 @login_required
 def add_transaction():

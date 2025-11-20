@@ -214,11 +214,27 @@
     </aside>
 
     <main class="main-content">
+        <!-- templates/index.html -->
         <header>
-            <h1>Overview</h1>
-            <div class="user-profile">User: {{ name }}</div>
-        </header>
+            <div>
+                <h1>Overview</h1>
+                <div class="user-profile">User: {{ name }}</div>
+            </div>
 
+            <!-- Account Filter Form -->
+            <form action="{{ url_for('home') }}" method="GET" style="display: flex; align-items: center;">
+                <label style="margin-right: 10px; color: var(--text-light);">View:</label>
+                <select name="account_id" onchange="this.form.submit()" style="padding: 8px; border-radius: 8px; border: 1px solid #E5E7EB; cursor: pointer;">
+                    <option value="all" {% if selected_account_id == 'all' %}selected{% endif %}>All Accounts</option>
+                    {% for acc in accounts %}
+                        <!-- Logic to keep the option selected after page reload -->
+                        <option value="{{ acc.account_id }}" {% if selected_account_id == acc.account_id|string %}selected{% endif %}>
+                            {{ acc.account_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </header>
         <section class="stats-grid">
             <div class="card">
                 <h3>Total Balance</h3>
