@@ -86,7 +86,7 @@
                         <td><span class="category-tag">{{ t.category_name }}</span></td>
                         <!-- Logic to color Income green and Expenses red -->
                         <td class="{{ 'text-success' if t.category_type == 'Income' else 'text-danger' }}">
-                            {{ '+' if t.category_type == 'Income' else '-' }}${{ t.amount }}
+                            {{ '+' if t.category_type == 'Income' else '-' }}{{ t.amount }}
                         </td>
                     </tr>
                     {% endfor %}
