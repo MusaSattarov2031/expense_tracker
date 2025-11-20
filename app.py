@@ -179,6 +179,55 @@ def register():
             
     return render_template('register.html')
 
+
+@app.route('/settings')
+@login_required
+def setting():
+    return render_template("settings.html", name=current_user.username)
+
+@app.route('/add_account', methods=['POST'])
+@login_required
+def add_account():
+    try:
+        name = request.form.get('account_name')
+        acc_type = request.form.get('account_type') # 'Bank', 'Cash', etc.
+        balance = float(request.form.get('initial_balance', 0))
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO accounts (user_id, account_name, account_type, current_balance)
+            VALUES (%s, %s, %s, %s)
+        """, (current_user.id, name, acc_type, balance))
+        conn.commit()
+        conn.close()
+        flash(f"Account '{name}' created!")
+    except Exception as e:
+        flash(f"Error adding account: {e}")
+        
+    return redirect(url_for('settings'))
+
+@app.route('/add_category', methods=['POST'])
+@login_required
+def add_category():
+    try:
+        name = request.form.get('category_name')
+        cat_type = request.form.get('category_type') # 'Income' or 'Expense'
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO categories (user_id, name, type)
+            VALUES (%s, %s, %s)
+        """, (current_user.id, name, cat_type))
+        conn.commit()
+        conn.close()
+        flash(f"Category '{name}' added!")
+    except Exception as e:
+        flash(f"Error adding category: {e}")
+        
+    return redirect(url_for('settings'))
+
 @app.route('/logout')
 @login_required
 def logout():
