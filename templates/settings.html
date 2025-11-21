@@ -127,7 +127,7 @@
                 <div class="alert">{{ messages[0] }}</div>
             {% endif %}
         {% endwith %}
-        
+
         <div class="form-card" style="margin-bottom: 20px;">
             <h2>Global Preferences</h2>
             <form action="{{ url_for('update_user_currency') }}" method="POST">
@@ -147,22 +147,46 @@
         </div>
 
         <!-- Update Add Account Form -->
+       <!-- Add Account Form -->
         <div class="form-card">
             <h2>Add New Account</h2>
             <form action="{{ url_for('add_account') }}" method="POST">
+                
+                <!-- 1. Name -->
                 <div class="form-group">
                     <label>Account Name</label>
-                    <input type="text" name="account_name" required>
+                    <input type="text" name="account_name" placeholder="e.g. Crypto Wallet, Secret Stash" required>
                 </div>
+
+                <!-- 2. Currency (New Feature) -->
                 <div class="form-group">
                     <label>Currency</label>
                     <select name="currency">
-                        <option value="TRY">TRY</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
+                        <option value="TRY">TRY (Turkish Lira)</option>
+                        <option value="USD">USD (US Dollar)</option>
+                        <option value="EUR">EUR (Euro)</option>
+                        <option value="GBP">GBP (British Pound)</option>
                     </select>
                 </div>
-                <!-- ... other fields ... -->
+
+                <!-- 3. Type (Missing in your snippet) -->
+                <div class="form-group">
+                    <label>Type</label>
+                    <select name="account_type">
+                        <option value="Bank">Bank Account</option>
+                        <option value="Cash">Physical Cash</option>
+                        <option value="Credit">Credit Card</option>
+                        <option value="Savings">Savings</option>
+                        <option value="Crypto">Crypto</option>
+                    </select>
+                </div>
+
+                <!-- 4. Initial Balance (Missing in your snippet) -->
+                <div class="form-group">
+                    <label>Initial Balance</label>
+                    <input type="number" name="initial_balance" placeholder="0.00" step="0.01">
+                </div>
+
                 <button type="submit" class="btn-primary">Create Account</button>
             </form>
         </div>
