@@ -110,7 +110,7 @@ def seed_data(user_id):
     # 2. Create default Categories
     cursor.execute("SELECT * FROM categories WHERE user_id = %s", (user_id,))
     if not cursor.fetchone():
-        defaults = [('Food', 'Expense'), ('Rent', 'Expense'), ('Salary', 'Income'), ('Fun', 'Expense')]
+        defaults = [('Food', 'Expense'), ('Rent', 'Expense'), ('Salary', 'Income'), ('Fun', 'Expense'), ('Initial Balance', 'Income')]
         for name, type in defaults:
             cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (user_id, name, type))
         conn.commit() # Commit changes immediately after inserting
@@ -180,7 +180,7 @@ def home():
     # 2. Fetch Accounts & Categories
     cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (current_user.id,))
     accounts = cursor.fetchall()
-    cursor.execute("SELECT * FROM categories WHERE user_id = %s", (current_user.id,))
+    cursor.execute("SELECT * FROM categories WHERE user_id = %s AND name!='Initial Balance'", (current_user.id,))
     categories = cursor.fetchall()
     conn.close()
 
@@ -314,7 +314,7 @@ def settings():
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (current_user.id,))
     accounts = cursor.fetchall()
-    cursor.execute("SELECT * FROM categories WHERE user_id = %s", (current_user.id,))
+    cursor.execute("SELECT * FROM categories WHERE user_id = %s AND name!='Initial Balance'", (current_user.id,))
     categories = cursor.fetchall()
     conn.close()
     
@@ -335,6 +335,25 @@ def add_account():
             INSERT INTO accounts (user_id, account_name, account_type, current_balance, currency)
             VALUES (%s, %s, %s, %s, %s)
         """, (current_user.id, name, acc_type, balance, currency))
+        new_account_id=cursor.lastrowid
+
+        if balance > 0:
+            # A. Find or Create the 'Initial Balance' category
+            cursor.execute("SELECT category_id FROM categories WHERE user_id = %s AND name = 'Initial Balance'", (current_user.id,))
+            cat_row = cursor.fetchone()
+            
+            if cat_row:
+                category_id = cat_row['category_id'] # Use dictionary access since cursor is dict
+            else:
+                # Create it if it doesn't exist (Self-Correction)
+                cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, 'Initial Balance', 'Income')", (current_user.id,))
+                category_id = cursor.lastrowid
+
+            # B. Insert the Transaction
+            cursor.execute("""
+                INSERT INTO transactions (user_id, account_id, category_id, amount, transaction_date, note)
+                VALUES (%s, %s, %s, %s, NOW(), 'Opening Balance')
+            """, (current_user.id, new_account_id, category_id, balance))
         conn.commit()
         conn.close()
         flash(f"Account '{name}' created!")
