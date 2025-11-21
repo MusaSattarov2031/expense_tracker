@@ -343,20 +343,32 @@ def init_db():
 def migrate_currency():
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+    messages = []
+
+    # 1. Try adding to USERS table
     try:
-        # 1. Add 'default_currency' to Users table
         cursor.execute("ALTER TABLE users ADD COLUMN default_currency VARCHAR(3) DEFAULT 'TRY'")
-        
-        # 2. Add 'currency' to Accounts table
-        cursor.execute("ALTER TABLE accounts ADD COLUMN currency VARCHAR(3) DEFAULT 'TRY'")
-        
         conn.commit()
-        return "Migration Successful: Added currency columns!"
-    except Exception as e:
-        return f"Migration Failed (Maybe columns exist?): {e}"
-    finally:
-        conn.close()
+        messages.append("✅ Success: Added 'default_currency' to USERS table.")
+    except mysql.connector.Error as e:
+        if e.errno == 1060: # Error 1060 means "Duplicate column name"
+            messages.append("ℹ️ Note: USERS table already had the column (Skipped).")
+        else:
+            messages.append(f"❌ Error on USERS table: {e}")
+
+    # 2. Try adding to ACCOUNTS table
+    try:
+        cursor.execute("ALTER TABLE accounts ADD COLUMN currency VARCHAR(3) DEFAULT 'TRY'")
+        conn.commit()
+        messages.append("✅ Success: Added 'currency' to ACCOUNTS table.")
+    except mysql.connector.Error as e:
+        if e.errno == 1060:
+            messages.append("ℹ️ Note: ACCOUNTS table already had the column (Skipped).")
+        else:
+            messages.append(f"❌ Error on ACCOUNTS table: {e}")
+
+    conn.close()
+    return "<br>".join(messages)
 
 if __name__=='__main__':
     app.run(host="0.0.0.0", port=5000)
