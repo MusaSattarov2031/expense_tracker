@@ -1,3 +1,4 @@
+import requests
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash 
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -5,7 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection, initialize_all_tables, get_user_transactions
 import mysql.connector
 from urllib.parse import urlparse
-import requests
+
 
 
 app=Flask(__name__)
