@@ -91,7 +91,7 @@ def convert_currency_with_rates(amount, from_curr, rates_dict):
     
     rate = rates_dict.get(from_curr, 1.0)
     if rate == 0: return amount
-    return round(amount / rate, 2)
+    return round(float(amount) / rate, 2)
 
 def seed_data(user_id):
     """Creates default Account and Categories if they don't exist."""
@@ -338,6 +338,7 @@ def init_db():
     return "Database Initialization Failed. Check logs."
 # app.py - Add this temporary migration route
 
+'''#Currency migration func:
 @app.route('/migrate_currency')
 @login_required
 def migrate_currency():
@@ -368,7 +369,7 @@ def migrate_currency():
             messages.append(f"❌ Error on ACCOUNTS table: {e}")
 
     conn.close()
-    return "<br>".join(messages)
+    return "<br>".join(messages)'''
 
 if __name__=='__main__':
     app.run(host="0.0.0.0", port=5000)
