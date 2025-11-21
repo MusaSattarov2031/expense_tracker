@@ -391,7 +391,7 @@ def init_db():
     return "Database Initialization Failed. Check logs."
 # app.py - Add this temporary migration route
 
-'''#Currency migration func:
+#Currency migration func:
 @app.route('/migrate_currency')
 @login_required
 def migrate_currency():
@@ -422,7 +422,7 @@ def migrate_currency():
             messages.append(f"❌ Error on ACCOUNTS table: {e}")
 
     conn.close()
-    return "<br>".join(messages)'''
+    return "<br>".join(messages)
 
 if __name__=='__main__':
     app.run(host="0.0.0.0", port=5000)
