@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection, initialize_all_tables, get_user_transactions
 import mysql.connector
 from urllib.parse import urlparse
+import requests
 
 
 app=Flask(__name__)
@@ -36,6 +37,61 @@ def load_user(user_id):
         print(f"DB Error: {e}")
     return None     
 
+# --- CURRENCY API LOGIC ---
+def get_live_rates(base_currency):
+    """
+    Fetches exchange rates from the free Frankfurter API.
+    Example URL: https://api.frankfurter.app/latest?from=TRY
+    Returns a dictionary: {'USD': 0.03, 'EUR': 0.028, ...}
+    """
+    try:
+        # We request rates with the user's currency as the "Base"
+        url = f"https://api.frankfurter.app/latest?from={base_currency}"
+        response = requests.get(url)
+        data = response.json()
+        
+        # The API returns rates relative to the base. 
+        # e.g. if Base is TRY, USD might be 0.029
+        rates = data.get('rates', {})
+        
+        # Add the base currency itself (1 to 1) so lookups don't fail
+        rates[base_currency] = 1.0 
+        
+        return rates
+    except Exception as e:
+        print(f"API Error: {e}")
+        # Fallback if API is down: Return empty dict or hardcoded safety values
+        return {base_currency: 1.0, 'USD': 0.03, 'EUR': 0.029, 'TRY': 1.0}
+
+def convert_currency_with_rates(amount, from_curr, rates_dict):
+    """
+    Converts amount using a pre-fetched dictionary of rates.
+    """
+    if from_curr not in rates_dict:
+        return amount # If currency not found, keep original amount
+        
+    # Logic: Since 'rates_dict' is based on the User's Default Currency,
+    # we just need to divide by the rate? No, wait.
+    # If Base = TRY. 
+    # API says: USD = 0.029 (1 TRY = 0.029 USD).
+    # Wait, Frankfurter 'from' gives you the value of 1 Unit of Base.
+    
+    # Let's use a safer approach: Convert everything to EUR (Frankfurter default) then to Target.
+    # Actually, the simplest way with Frankfurter:
+    # If I have 100 USD and I want TRY.
+    # If I fetch rates with ?from=USD, I get TRY rate directly.
+    
+    # OPTIMIZATION: To avoid calling API for every transaction, 
+    # we will fetch ?from=USER_DEFAULT_CURRENCY.
+    # Then: 
+    # Rate for USD will be: How many USD is 1 UserCurrency.
+    # So if I have 50 USD, and Rate is 0.03 (1 TRY = 0.03 USD).
+    # Amount in TRY = 50 / 0.03
+    
+    rate = rates_dict.get(from_curr, 1.0)
+    if rate == 0: return amount
+    return round(amount / rate, 2)
+
 def seed_data(user_id):
     """Creates default Account and Categories if they don't exist."""
     conn = get_db_connection()
@@ -63,57 +119,71 @@ def seed_data(user_id):
 
 
 
-# --- ROUTES ---
 @app.route('/')
 @login_required
 def home():
     seed_data(current_user.id)
-
-    # 1. Get the filter from the URL (e.g., /?account_id=2)
-    filter_account_id = request.args.get('account_id')
-
-    # 2. Fetch ALL transactions first
-    all_transactions = get_user_transactions(current_user.id)
-
-    # 3. Filter the list if a specific account is selected
-    if filter_account_id and filter_account_id != 'all':
-        # We use str() because URL parameters are always strings
-        transactions = [t for t in all_transactions if str(t['account_id']) == filter_account_id]
-    else:
-        transactions = all_transactions
-        filter_account_id = 'all' # Default state
-
-    # 4. Calculate Totals based on the FILTERED list
-    total_balance = 0
-    income = 0
-    expense = 0
     
-    for t in transactions:
-        if t['category_type'] == 'Income':
-            income += t['amount']
-            total_balance += t['amount']
-        else:
-            expense += t['amount']
-            total_balance -= t['amount']
-
-    # 5. Fetch Accounts/Categories for dropdowns
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    
+    # 1. Get User Settings (Default Currency)
+    cursor.execute("SELECT default_currency FROM users WHERE user_id = %s", (current_user.id,))
+    user_row = cursor.fetchone()
+    user_currency = user_row['default_currency'] if user_row and user_row['default_currency'] else 'TRY'
+    
+    # 2. Fetch Accounts & Categories
     cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (current_user.id,))
     accounts = cursor.fetchall()
     cursor.execute("SELECT * FROM categories WHERE user_id = %s", (current_user.id,))
     categories = cursor.fetchall()
     conn.close()
 
+    # 3. CALL THE API ONCE HERE
+    # Get all rates relative to the user's preferred currency
+    live_rates = get_live_rates(user_currency)
+
+    # 4. Filter Transactions (Logic from before)
+    all_transactions = get_user_transactions(current_user.id)
+    filter_account_id = request.args.get('account_id')
+    
+    if filter_account_id and filter_account_id != 'all':
+        transactions = [t for t in all_transactions if str(t['account_id']) == filter_account_id]
+    else:
+        transactions = all_transactions
+        filter_account_id = 'all'
+
+    # 5. Calculate Totals using Live Rates
+    total_balance = 0
+    income = 0
+    expense = 0
+    
+    acc_currency_map = {acc['account_id']: acc['currency'] for acc in accounts}
+
+    for t in transactions:
+        # Determine transaction currency (default to TRY if account has no currency set)
+        trans_currency = acc_currency_map.get(t['account_id'], 'TRY')
+        
+        # Use our new conversion function
+        converted_amount = convert_currency_with_rates(t['amount'], trans_currency, live_rates)
+        
+        if t['category_type'] == 'Income':
+            income += converted_amount
+            total_balance += converted_amount
+        else:
+            expense += converted_amount
+            total_balance -= converted_amount
+
     return render_template('index.html', 
                            name=current_user.username,
-                           transactions=transactions, # This is now the filtered list
-                           total_balance=total_balance,
-                           income=income,
-                           expense=expense,
+                           transactions=transactions,
+                           total_balance=round(total_balance, 2),
+                           income=round(income, 2),
+                           expense=round(expense, 2),
                            accounts=accounts,
                            categories=categories,
-                           selected_account_id=filter_account_id)
+                           selected_account_id=filter_account_id,
+                           currency_symbol=user_currency)
 
 @app.route('/add_transaction', methods=['POST'])
 @login_required
