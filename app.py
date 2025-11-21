@@ -118,7 +118,51 @@ def seed_data(user_id):
     cursor.close()
     conn.close()
 
+@app.route('/update_user_currency', methods=['POST'])
+@login_required
+def update_user_currency():
+    new_currency = request.form.get('default_currency')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET default_currency = %s WHERE user_id = %s", (new_currency, current_user.id))
+    conn.commit()
+    conn.close()
+    flash("Default currency updated!")
+    return redirect(url_for('settings'))
 
+@app.route('/delete_account/<int:id>')
+@login_required
+def delete_account(id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Delete linked transactions first (or use ON DELETE CASCADE in SQL)
+        cursor.execute("DELETE FROM transactions WHERE account_id = %s AND user_id = %s", (id, current_user.id))
+        cursor.execute("DELETE FROM accounts WHERE account_id = %s AND user_id = %s", (id, current_user.id))
+        conn.commit()
+        conn.close()
+        flash("Account deleted!")
+    except Exception as e:
+        flash(f"Error deleting account: {e}")
+    return redirect(url_for('settings'))
+
+@app.route('/delete_category/<int:id>')
+@login_required
+def delete_category(id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Set transactions to a default category or delete them? 
+        # For now, let's just delete the category. Note: This might break transactions linked to it if not handled.
+        # Ideally, we check if it's being used first.
+        cursor.execute("DELETE FROM transactions WHERE category_id = %s AND user_id = %s", (id, current_user.id))
+        cursor.execute("DELETE FROM categories WHERE category_id = %s AND user_id = %s", (id, current_user.id))
+        conn.commit()
+        conn.close()
+        flash("Category deleted!")
+    except Exception as e:
+        flash(f"Error deleting category: {e}")
+    return redirect(url_for('settings'))
 
 @app.route('/')
 @login_required
@@ -266,22 +310,31 @@ def register():
 @app.route('/settings')
 @login_required
 def settings():
-    return render_template("settings.html", name=current_user.username)
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (current_user.id,))
+    accounts = cursor.fetchall()
+    cursor.execute("SELECT * FROM categories WHERE user_id = %s", (current_user.id,))
+    categories = cursor.fetchall()
+    conn.close()
+    
+    return render_template('settings.html', name=current_user.username, accounts=accounts, categories=categories)
 
 @app.route('/add_account', methods=['POST'])
 @login_required
 def add_account():
     try:
         name = request.form.get('account_name')
-        acc_type = request.form.get('account_type') # 'Bank', 'Cash', etc.
+        acc_type = request.form.get('account_type')
+        currency = request.form.get('currency') # NEW FIELD
         balance = float(request.form.get('initial_balance', 0))
         
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO accounts (user_id, account_name, account_type, current_balance)
-            VALUES (%s, %s, %s, %s)
-        """, (current_user.id, name, acc_type, balance))
+            INSERT INTO accounts (user_id, account_name, account_type, current_balance, currency)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (current_user.id, name, acc_type, balance, currency))
         conn.commit()
         conn.close()
         flash(f"Account '{name}' created!")
