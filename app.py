@@ -8,34 +8,42 @@ from database import get_db_connection, initialize_all_tables, get_user_transact
 import mysql.connector
 from urllib.parse import urlparse
 
-app=Flask(__name__)
-app.secret_key="MEN BU YERDE YA;ALMADIM" 
+app = Flask(__name__)
+app.secret_key = "MEN BU YERDE YA;ALMADIM" 
 
 #---Login Manager Setup---
-login_manager=LoginManager()
+login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view='login'
+login_manager.login_view = 'login'
 
 class User(UserMixin):
     def __init__(self, id, username, password_hash):
-        self.id=id
-        self.username=username
-        self.password_hash=password_hash
+        self.id = id
+        self.username = username
+        self.password_hash = password_hash
 
-# --- CONNECTION MANAGEMENT ---
-@app.before_request
-def before_request():
-    g.db = None 
+# --- CONNECTION MANAGEMENT (FIXED) ---
+
+# We don't strictly need before_request to set None if we check correctly in get_db
+# But if we keep it, get_db must check 'is None'
 
 @app.teardown_request
 def teardown_request(exception):
+    """Closes (returns to pool) the connection after every request."""
+    # Pop 'db' from g. If it doesn't exist, return None.
     db = g.pop('db', None)
+    
     if db is not None:
-        db.close() 
+        try:
+            # Only try to close if it's a valid connection object
+            db.close() 
+        except Exception as e:
+            print(f"Error closing database connection: {e}")
 
 def get_db():
-    """Returns the connection for this specific request."""
-    if 'db' not in g:
+    """Returns the cached pooled database connection for the current request."""
+    # FIX: Check if 'db' is NOT in g OR if it is explicitly None
+    if 'db' not in g or g.db is None:
         g.db = get_db_connection() 
     return g.db
 
@@ -54,8 +62,8 @@ def load_user(user_id):
     return None
 
 # --- CURRENCY CACHE ---
-RATE_CACHE={}
-CACHE_DURATION=3600*24 
+RATE_CACHE = {}
+CACHE_DURATION = 3600 * 24 
 
 def get_live_rates(base_currency):
     current_time = time.time()
@@ -109,7 +117,6 @@ def home():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
-    # 1. Fetch Data
     cursor.execute("SELECT default_currency FROM users WHERE user_id = %s", (current_user.id,))
     user_row = cursor.fetchone()
     user_currency = user_row['default_currency'] if user_row and user_row['default_currency'] else 'TRY'
@@ -118,9 +125,8 @@ def home():
     accounts = cursor.fetchall()
     cursor.execute("SELECT * FROM categories WHERE user_id = %s AND name!='Initial Balance'", (current_user.id,))
     categories = cursor.fetchall()
-    conn.close() # Return to pool (handled by get_db logic usually, but explicit close returns to pool early)
+    conn.close() # Explicit close here is fine as it returns to pool early
 
-    # 2. Process Data
     live_rates = get_live_rates(user_currency)
     all_transactions = get_user_transactions(current_user.id)
     
@@ -140,7 +146,7 @@ def home():
         trans_currency = acc_currency_map.get(t['account_id'], 'TRY')
         converted_amount = convert_currency_with_rates(t['amount'], trans_currency, live_rates)
         
-        if t['category_name']=='Initial Balance':
+        if t['category_name'] == 'Initial Balance':
             total_balance += converted_amount
         elif t['category_type'] == 'Income':
             income += converted_amount
@@ -161,7 +167,7 @@ def home():
                            selected_account_id=filter_account_id,
                            currency_symbol=user_currency)
 
-# --- ACTIONS (All Redirect to Home) ---
+# --- ACTIONS ---
 
 @app.route('/add_transaction', methods=['POST'])
 @login_required
@@ -297,21 +303,23 @@ def logout():
 @app.route('/init_db')
 def init_db():
     if initialize_all_tables():
-        # Users table creation must be handled manually or inside initialize_all_tables
-        conn = get_db_connection() # DIRECT CONNECTION for init
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id INT AUTO_INCREMENT PRIMARY KEY,
-                username VARCHAR(50) NOT NULL UNIQUE,
-                password_hash VARCHAR(255) NOT NULL,
-                default_currency VARCHAR(3) DEFAULT 'TRY',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        conn.commit()
-        conn.close()
-        return "Database Tables Created Successfully!"
+        # Manually handle connection for this one-off admin task
+        conn = get_db_connection() 
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL,
+                    default_currency VARCHAR(3) DEFAULT 'TRY',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
+            return "Database Tables Created Successfully!"
+        finally:
+            conn.close()
     return "Database Initialization Failed."
 
 @app.route('/migrate_currency')
