@@ -132,7 +132,6 @@ def seed_data(user_id):
         conn.commit() 
     
     cursor.close()
-    conn.close()
 
 
 @app.route('/update_user_currency', methods=['POST'])
@@ -143,7 +142,6 @@ def update_user_currency():
     cursor = conn.cursor(dictionary=True)
     cursor.execute("UPDATE users SET default_currency = %s WHERE user_id = %s", (new_currency, current_user.id))
     conn.commit()
-    conn.close()
     flash("Default currency updated!")
     return redirect(url_for('home'))
 
@@ -157,7 +155,6 @@ def delete_account(id):
         cursor.execute("DELETE FROM transactions WHERE account_id = %s AND user_id = %s", (id, current_user.id))
         cursor.execute("DELETE FROM accounts WHERE account_id = %s AND user_id = %s", (id, current_user.id))
         conn.commit()
-        conn.close()
         flash("Account deleted!")
     except Exception as e:
         flash(f"Error deleting account: {e}")
@@ -172,7 +169,6 @@ def delete_category(id):
         cursor.execute("DELETE FROM transactions WHERE category_id = %s AND user_id = %s", (id, current_user.id))
         cursor.execute("DELETE FROM categories WHERE category_id = %s AND user_id = %s", (id, current_user.id))
         conn.commit()
-        conn.close()
         flash("Category deleted!")
     except Exception as e:
         flash(f"Error deleting category: {e}")
@@ -195,7 +191,6 @@ def home():
     accounts = cursor.fetchall()
     cursor.execute("SELECT * FROM categories WHERE user_id = %s AND name!='Initial Balance'", (current_user.id,))
     categories = cursor.fetchall()
-    conn.close()
 
     # 3. CALL THE API ONCE HERE
     # Get all rates relative to the user's preferred currency
@@ -263,7 +258,6 @@ def add_transaction():
     """, (current_user.id, account_id, category_id, amount, note))
     
     conn.commit()
-    conn.close()
     
     flash("Transaction Added!")
     return redirect(url_for('home'))
@@ -278,7 +272,6 @@ def login():
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         user_data = cursor.fetchone()
-        conn.close()
         
         if user_data and check_password_hash(user_data['password_hash'], password):
             user = User(user_data['user_id'], user_data['username'], user_data['password_hash'])
@@ -305,8 +298,6 @@ def register():
             return redirect(url_for('login'))
         except mysql.connector.Error as err:
             flash(f"Error: {err}")
-        finally:
-            conn.close()
             
     return render_template('register.html')
 
@@ -345,7 +336,6 @@ def add_account():
                 VALUES (%s, %s, %s, %s, NOW(), 'Opening Balance')
             """, (current_user.id, new_account_id, category_id, balance))
         conn.commit()
-        conn.close()
         flash(f"Account '{name}' created!")
     except Exception as e:
         flash(f"Error adding account: {e}")
@@ -366,7 +356,6 @@ def add_category():
             VALUES (%s, %s, %s)
         """, (current_user.id, name, cat_type))
         conn.commit()
-        conn.close()
         flash(f"Category '{name}' added!")
     except Exception as e:
         flash(f"Error adding category: {e}")
