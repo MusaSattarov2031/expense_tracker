@@ -1,82 +1,123 @@
-#---Creating Accounts, Categories, Transaction Tables---
 import mysql.connector
+from mysql.connector import pooling 
 from urllib.parse import urlparse
 import os
 
-DB_URL=os.getenv("DATABASE_URL")
+DB_URL = os.getenv("DATABASE_URL")
+cnx_pool = None 
+
+def init_pool():
+    """Initializes the connection pool. Returns the pool or None on failure."""
+    global cnx_pool
+    if not DB_URL:
+        print("❌ ERROR: DATABASE_URL environment variable is missing.")
+        return None
+        
+    try:
+        url_without_query = DB_URL.split('?')[0]
+        url = urlparse(url_without_query)
+        
+        db_config = {
+            "host": url.hostname,
+            "user": url.username,
+            "password": url.password,
+            "database": url.path[1:],
+            "port": url.port,
+            "ssl_disabled": False
+        }
+        
+        # Create a pool of 5 connections
+        new_pool = pooling.MySQLConnectionPool(
+            pool_name="mypool",
+            pool_size=5, 
+            pool_reset_session=True,
+            **db_config
+        )
+        print("✅ Database Pool Created Successfully!")
+        return new_pool
+        
+    except Exception as e:
+        print(f"❌ CRITICAL ERROR: Failed to create database pool: {e}")
+        return None
 
 def get_db_connection():
-    if not DB_URL:
-        raise ValueError("DATABASE_URL environment variable is not set.")
-    url_without_query=DB_URL.split('?')[0]
-    url=urlparse(url_without_query)
+    """Gets a connection from the Pool. Initializes pool if needed."""
+    global cnx_pool
+    
+    # 1. Try to initialize if pool is missing
+    if cnx_pool is None:
+        print("⚠️ Pool not found. Attempting to initialize...")
+        cnx_pool = init_pool()
+        
+    # 2. If still None, we cannot proceed
+    if cnx_pool is None:
+        raise Exception("Database pool initialization failed. Check logs for details.")
 
-    return mysql.connector.connect(
-        host=url.hostname,
-        user=url.username,
-        password=url.password,
-        database=url.path[1:],
-        port=url.port,
-        ssl_disabled=False
-    )
+    # 3. Get connection
+    try:
+        return cnx_pool.get_connection()
+    except Exception as e:
+        print(f"Error getting connection from pool: {e}")
+        raise e
+
+# --- Keep existing functions (ensure they use get_db_connection()) ---
 
 def initialize_all_tables():
+    conn = None
     try:
-        conn=get_db_connection()
-        cursor=conn.cursor()
-        #ACCOUNTS TABLE
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # ACCOUNTS
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS accounts(
-                account_id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
-                account_name VARCHAR(100) NOT NULL,
-                account_type VARCHAR(50) NOT NULL,
-                current_balance DECIMAL(10, 2) DEFAULT 0.00,
-                FOREIGN KEY (user_id) REFERENCES  users(user_id)
-            );
+            CREATE TABLE IF NOT EXISTS accounts (
+                account_id INT AUTO_INCREMENT PRIMARY KEY, 
+                user_id INT NOT NULL, 
+                account_name VARCHAR(100) NOT NULL, 
+                account_type VARCHAR(50) NOT NULL, 
+                current_balance DECIMAL(10,2) DEFAULT 0.00, 
+                currency VARCHAR(3), 
+                FOREIGN KEY(user_id) REFERENCES users(user_id)
+            )
         """)
-        #CATEGORIES
+        # CATEGORIES
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS categories (
-                category_id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                type VARCHAR(20) NOT NULL, -- e.g., 'Expense', 'Income'
-                FOREIGN KEY (user_id) REFERENCES users(user_id)
-            );
+                category_id INT AUTO_INCREMENT PRIMARY KEY, 
+                user_id INT NOT NULL, 
+                name VARCHAR(100) NOT NULL, 
+                type VARCHAR(20) NOT NULL, 
+                FOREIGN KEY(user_id) REFERENCES users(user_id)
+            )
         """)
-        # 3. TRANSACTIONS Table: The main data table
+        # TRANSACTIONS
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
-                transaction_id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
-                account_id INT NOT NULL,
-                category_id INT NOT NULL,
-                amount DECIMAL(10, 2) NOT NULL,
-                transaction_date DATE NOT NULL,
-                note VARCHAR(255),
-                FOREIGN KEY (user_id) REFERENCES users(user_id),
-                FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-                FOREIGN KEY (category_id) REFERENCES categories(category_id)
-            );
+                transaction_id INT AUTO_INCREMENT PRIMARY KEY, 
+                user_id INT NOT NULL, 
+                account_id INT NOT NULL, 
+                category_id INT NOT NULL, 
+                amount DECIMAL(10,2) NOT NULL, 
+                transaction_date DATE NOT NULL, 
+                note VARCHAR(255), 
+                FOREIGN KEY(user_id) REFERENCES users(user_id), 
+                FOREIGN KEY(account_id) REFERENCES accounts(account_id), 
+                FOREIGN KEY(category_id) REFERENCES categories(category_id)
+            )
         """)
-
         conn.commit()
         return True
-    except mysql.connector.Error as err:
-        print(f"Database Initialization Error: {err}")
+    except Exception as e:
+        print(f"Init Error: {e}")
         return False
     finally:
-        if conn and conn.is_connected():
-            cursor.close()
-            conn.close()
-            
+        if conn: conn.close()
+
 def get_user_transactions(user_id):
-    """Fetches all transactions for a given user ID."""
+    conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        # We join tables to get meaningful names instead of just IDs
         query = """
         SELECT t.*, a.account_name, c.name AS category_name, c.type AS category_type
         FROM transactions t
@@ -92,5 +133,4 @@ def get_user_transactions(user_id):
         print(f"Error fetching transactions: {e}")
         return []
     finally:
-        if conn and conn.is_connected():
-            conn.close()            
+        if conn: conn.close()
