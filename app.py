@@ -124,7 +124,7 @@ def update_user_currency():
     conn.commit()
     conn.close()
     flash("Default currency updated!")
-    return redirect(url_for('settings'))
+    return redirect(url_for('home'))
 
 @app.route('/delete_account/<int:id>')
 @login_required
@@ -140,7 +140,7 @@ def delete_account(id):
         flash("Account deleted!")
     except Exception as e:
         flash(f"Error deleting account: {e}")
-    return redirect(url_for('settings'))
+    return redirect(url_for('home'))
 
 @app.route('/delete_category/<int:id>')
 @login_required
@@ -155,7 +155,7 @@ def delete_category(id):
         flash("Category deleted!")
     except Exception as e:
         flash(f"Error deleting category: {e}")
-    return redirect(url_for('settings'))
+    return redirect(url_for('home'))
 
 @app.route('/')
 @login_required
@@ -215,6 +215,7 @@ def home():
     return render_template('index.html', 
                            name=current_user.username,
                            transactions=transactions,
+                           all_transactions=all_transactions,
                            total_balance=round(total_balance, 2),
                            income=round(income, 2),
                            expense=round(expense, 2),
@@ -245,17 +246,6 @@ def add_transaction():
     
     flash("Transaction Added!")
     return redirect(url_for('home'))
-@app.route('/transactions')
-@login_required
-def transactions_page():
-    # 1. Fetch full transaction history for the current user
-    # We use the helper function we imported from database.py
-    transactions = get_user_transactions(current_user.id)
-    
-    # 2. Render the separate Transactions page
-    return render_template('transactions.html', 
-                           name=current_user.username, 
-                           transactions=transactions)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -299,20 +289,6 @@ def register():
             
     return render_template('register.html')
 
-
-@app.route('/settings')
-@login_required
-def settings():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (current_user.id,))
-    accounts = cursor.fetchall()
-    cursor.execute("SELECT * FROM categories WHERE user_id = %s AND name!='Initial Balance'", (current_user.id,))
-    categories = cursor.fetchall()
-    conn.close()
-    
-    return render_template('settings.html', name=current_user.username, accounts=accounts, categories=categories)
-
 @app.route('/add_account', methods=['POST'])
 @login_required
 def add_account():
@@ -353,7 +329,7 @@ def add_account():
     except Exception as e:
         flash(f"Error adding account: {e}")
         
-    return redirect(url_for('settings'))
+    return redirect(url_for('home'))
 
 @app.route('/add_category', methods=['POST'])
 @login_required
@@ -381,6 +357,7 @@ def add_category():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
 @app.route('/init_db')
 def init_db():
     if initialize_all_tables():

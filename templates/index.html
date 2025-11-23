@@ -3,269 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ExpenseTracker | Dashboard</title>
+    <title>ExpenseTracker | SPA Dashboard</title>
     <style>
-        /* --- CSS VARIABLES & RESET --- */
-        :root {
-            --primary: #4F46E5; /* Indigo */
-            --secondary: #10B981; /* Emerald for Income */
-            --danger: #EF4444; /* Red for Expense */
-            --bg-dark: #F3F4F6;
-            --text-dark: #1F2937;
-            --text-light: #6B7280;
-            --white: #FFFFFF;
-            --sidebar-width: 250px;
-        }
+        /* --- CORE STYLES --- */
+        :root { --primary: #4F46E5; --secondary: #10B981; --danger: #EF4444; --bg-dark: #F3F4F6; --text-dark: #1F2937; --text-light: #6B7280; --white: #FFFFFF; --sidebar-width: 250px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-dark); height: 100vh; display: flex; }
+        
+        /* Layout */
+        .sidebar { width: var(--sidebar-width); background-color: var(--white); display: flex; flex-direction: column; padding: 20px; border-right: 1px solid #E5E7EB; position: fixed; height: 100%; z-index: 100; }
+        .main-content { margin-left: var(--sidebar-width); flex: 1; padding: 30px; overflow-y: auto; }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-bottom: 40px; }
+        
+        /* Tabs (Buttons acting as navigation links) */
+        .nav-btn { display: block; width: 100%; padding: 12px 15px; margin-bottom: 5px; text-align: left; border: none; background: none; color: var(--text-light); cursor: pointer; border-radius: 8px; font-size: 1rem; transition: 0.2s; }
+        .nav-btn:hover, .nav-btn.active { background-color: #EEF2FF; color: var(--primary); font-weight: 600; }
+        
+        /* Sections - Key to SPA */
+        .content-section { display: none; padding-top: 5px; animation: fadeIn 0.3s; }
+        .content-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-dark);
-            color: var(--text-dark);
-            height: 100vh;
-            display: flex;
-        }
-
-        /* --- SIDEBAR --- */
-        .sidebar {
-            width: var(--sidebar-width);
-            background-color: var(--white);
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            border-right: 1px solid #E5E7EB;
-            position: fixed;
-            height: 100%;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--primary);
-            margin-bottom: 40px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .nav-links a {
-            text-decoration: none;
-            color: var(--text-light);
-            padding: 12px 15px;
-            display: block;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            transition: 0.3s;
-        }
-
-        .nav-links a:hover, .nav-links a.active {
-            background-color: #EEF2FF;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        /* --- MAIN CONTENT --- */
-        .main-content {
-            margin-left: var(--sidebar-width);
-            flex: 1;
-            padding: 30px;
-            overflow-y: auto;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
+        /* Components */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
         h1 { font-size: 1.8rem; }
-        .user-profile { font-weight: 600; color: var(--text-light); }
-
-        /* --- DASHBOARD CARDS --- */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: var(--white);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .card h3 {
-            font-size: 0.9rem;
-            color: var(--text-light);
-            margin-bottom: 10px;
-        }
-
-        .card .amount {
-            font-size: 1.8rem;
-            font-weight: bold;
-        }
-
-        .text-success { color: var(--secondary); }
-        .text-danger { color: var(--danger); }
-
-        /* --- CHARTS & INPUT SECTION --- */
-        .grid-2-col {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .chart-container {
-            background: var(--white);
-            padding: 20px;
-            border-radius: 12px;
-            height: 300px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px dashed #E5E7EB;
-        }
-
-        /* Quick Add Form */
-        .input-form {
-            background: var(--white);
-            padding: 25px;
-            border-radius: 12px;
-        }
-
+        .card { background: var(--white); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .grid-2-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .amount { font-size: 1.8rem; font-weight: bold; }
+        .text-success { color: var(--secondary); } .text-danger { color: var(--danger); }
+        
+        /* Forms & Tables */
+        .form-card, .input-form { background: var(--white); padding: 25px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .form-group { margin-bottom: 15px; }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-            color: var(--text-light);
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #E5E7EB;
-            border-radius: 6px;
-            outline: none;
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 10px;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-
-        .btn-primary:hover { background-color: #4338CA; }
-
-        /* --- TRANSACTIONS TABLE --- */
-        .table-container {
-            background: var(--white);
-            padding: 20px;
-            border-radius: 12px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-
-        th { text-align: left; color: var(--text-light); padding-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: var(--text-light); font-size: 0.9rem; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #E5E7EB; border-radius: 6px; outline: none; }
+        .btn-primary { width: 100%; padding: 10px; background-color: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding-bottom: 15px; color: var(--text-light); border-bottom: 2px solid #F3F4F6; }
         td { padding: 12px 0; border-bottom: 1px solid #F3F4F6; }
+        .category-tag { background: #EEF2FF; color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
+        .alert { background-color: #D1FAE5; color: #065F46; padding: 10px; border-radius: 6px; margin-bottom: 20px; }
         
-        .category-tag {
-            background: #EEF2FF;
-            color: var(--primary);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-        }
-        /* --- MOBILE RESPONSIVENESS --- */
+        /* Mobile */
         @media (max-width: 768px) {
-            /* 1. Move Sidebar to Bottom */
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: fixed;
-                bottom: 0;
-                top: auto; /* Reset top position */
-                flex-direction: row;
-                border-right: none;
-                border-top: 1px solid #E5E7EB;
-                padding: 10px;
-                z-index: 1000; /* Ensure it sits on top of content */
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            /* 2. Adjust Logo */
-            .logo {
-                font-size: 1.2rem;
-                margin-bottom: 0;
-                margin-right: 10px;
-                display: none; /* Optional: Hide logo on very small screens to save space */
-            }
-
-            /* 3. Spread Navigation Links Horizontally */
-            .nav-links {
-                display: flex;
-                flex-direction: row;
-                width: 100%;
-                justify-content: space-around;
-            }
-
-            .nav-links a {
-                margin-bottom: 0;
-                padding: 8px;
-                font-size: 0.9rem;
-                text-align: center;
-            }
-
-            /* 4. Expand Main Content */
-            .main-content {
-                margin-left: 0;
-                width: 100%;
-                padding: 15px;
-                padding-bottom: 80px; /* Add space at bottom so content isn't hidden behind nav bar */
-            }
-
-            /* 5. Stack Forms Vertically */
-            .grid-2-col {
-                grid-template-columns: 1fr; /* Force single column */
-            }
-
-            /* 6. Make Tables Scrollable */
-            .table-container {
-                overflow-x: auto; /* Allows table to scroll sideways if it's too wide */
-            }
-            
-            /* 7. Adjust Header for Filter */
-            header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-            
-            header form {
-                width: 100%;
-                justify-content: space-between;
-            }
+            .sidebar { width: 100%; height: auto; bottom: 0; top: auto; border-right: none; border-top: 1px solid #E5E7EB; flex-direction: row; padding: 10px; justify-content: space-around; }
+            .logo { display: none; }
+            .nav-btn { text-align: center; padding: 8px; font-size: 0.9rem; margin: 0; }
+            .main-content { margin-left: 0; padding-bottom: 80px; }
+            .grid-2-col { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -273,98 +59,210 @@
 
     <aside class="sidebar">
         <div class="logo"><span>📊</span> FinanceTrack</div>
-        <nav class="nav-links">
-            <!-- active class is on Dashboard -->
-            <a href="{{ url_for('home') }}" class="active">Dashboard</a>
-            <!-- Updated Link -->
-            <a href="{{ url_for('transactions_page') }}">Transactions</a>
-            <a href="{{ url_for('settings')}}">Settings</a>
-            <a href="{{ url_for('logout') }}" style="color: #EF4444;">Logout</a>
-        </nav>
+        <!-- Note: We use buttons that call JavaScript, not links -->
+        <button class="nav-btn active" onclick="showSection('dashboard')">Dashboard</button>
+        <button class="nav-btn" onclick="showSection('transactions')">History</button>
+        <button class="nav-btn" onclick="showSection('settings')">Settings</button>
+        <a href="{{ url_for('logout') }}" class="nav-btn" style="color: #EF4444;">Logout</a>
     </aside>
 
     <main class="main-content">
-        <!-- templates/index.html -->
-        <header>
-            <div>
-                <h1>Overview</h1>
-                <div class="user-profile">User: {{ name }}</div>
-            </div>
+        
+        <!-- Flash Messages (Visible across all tabs) -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %} <div class="alert">{{ messages[0] }}</div> {% endif %}
+        {% endwith %}
 
-            <!-- Account Filter Form -->
-            <form action="{{ url_for('home') }}" method="GET" style="display: flex; align-items: center;">
-                <label style="margin-right: 10px; color: var(--text-light);">View:</label>
-                <select name="account_id" onchange="this.form.submit()" style="padding: 8px; border-radius: 8px; border: 1px solid #E5E7EB; cursor: pointer;">
-                    <option value="all" {% if selected_account_id == 'all' %}selected{% endif %}>All Accounts</option>
-                    {% for acc in accounts %}
-                        <!-- Logic to keep the option selected after page reload -->
-                        <option value="{{ acc.account_id }}" {% if selected_account_id == acc.account_id|string %}selected{% endif %}>
-                            {{ acc.account_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </form>
-        </header>
-        <section class="stats-grid">
-            <div class="card">
-                <h3>Total Balance</h3>
-                <div class="amount">{{ total_balance }}</div>
-            </div>
-            <div class="card">
-                <h3>Monthly Income</h3>
-                <div class="amount text-success">{{ income }}</div>
-            </div>
-            <div class="card">
-                <h3>Monthly Expenses</h3>
-                <div class="amount text-danger">{{ expense }}</div>
-            </div>
-            <div class="card">
-                <h3>Savings Rate</h3>
-                <div class="amount">#developing stage#</div>
-            </div>
-        </section>
+        <!-- ==================== TAB 1: DASHBOARD (Active by Default) ==================== -->
+        <div id="dashboard" class="content-section active">
+            <header>
+                <div>
+                    <h1 style="font-size: 1.8rem;">Overview</h1>
+                    <div style="color: #6B7280;">User: <strong>{{ name }}</strong> | Display: <strong>{{ currency_symbol }}</strong></div>
+                </div>
+                <!-- Account Filter Form -->
+                <form action="{{ url_for('home') }}" method="GET">
+                    <select name="account_id" onchange="this.form.submit()" style="padding: 8px;">
+                        <option value="all" {% if selected_account_id == 'all' %}selected{% endif %}>All Accounts</option>
+                        {% for acc in accounts %}
+                            <option value="{{ acc.account_id }}" {% if selected_account_id == acc.account_id|string %}selected{% endif %}>
+                                {{ acc.account_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </header>
 
-        <section class="grid-2-col">
-            <div class="chart-container">
-                <p style="color: #9CA3AF;">[ Python Matplotlib Chart will be rendered here ]</p>
-            </div>
+            <!-- Stats -->
+            <section class="stats-grid">
+                <div class="card"><h3>Total Balance</h3><div class="amount">{{ total_balance }}</div></div>
+                <div class="card"><h3>Monthly Income</h3><div class="amount text-success">{{ income }}</div></div>
+                <div class="card"><h3>Monthly Expenses</h3><div class="amount text-danger">{{ expense }}</div></div>
+                <div class="card"><h3>Savings Rate</h3><div class="amount">--%</div></div>
+            </section>
 
-            <div class="input-form">
-                <h3 style="margin-bottom: 15px;">Quick Add</h3>
-                <!-- Corrected Form with 'name' attributes -->
-                <form action="{{ url_for('add_transaction') }}" method="POST">
+            <!-- Add Transaction -->
+            <section class="grid-2-col">
+                <div class="card" style="display: flex; align-items: center; justify-content: center; min-height: 300px;">
+                    <p style="color: #9CA3AF;">[ Charts Placeholder ]</p>
+                </div>
+                <div class="input-form">
+                    <h3>Quick Add</h3>
+                    <form action="{{ url_for('add_transaction') }}" method="POST">
+                        <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" required></div>
+                        <div class="form-group"><label>Account</label>
+                            <select name="account_id">
+                                {% for acc in accounts %}<option value="{{ acc.account_id }}">{{ acc.account_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group"><label>Category</label>
+                            <select name="category_id">
+                                {% for cat in categories %}<option value="{{ cat.category_id }}">{{ cat.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group"><label>Note</label><input type="text" name="note" placeholder="Optional"></div>
+                        <button type="submit" class="btn-primary">Add Transaction</button>
+                    </form>
+                </div>
+            </section>
+        </div>
+
+        <!-- ==================== TAB 2: HISTORY (Transactions Content) ==================== -->
+        <div id="transactions" class="content-section">
+            <header style="margin-bottom: 30px;"><h1>History</h1></header>
+            <div class="form-card">
+                <table>
+                    <thead><tr><th>Date</th><th>Note</th><th>Account</th><th>Category</th><th>Amount</th></tr></thead>
+                    <tbody>
+                        <!-- Use the 'transactions' variable passed by the home route -->
+                        {% for t in transactions %}
+                        <tr>
+                            <td>{{ t.transaction_date }}</td>
+                            <td>{{ t.note }}</td>
+                            <td>{{ t.account_name }}</td>
+                            <td><span class="category-tag">{{ t.category_name }}</span></td>
+                            <td class="{{ 'text-success' if t.category_type == 'Income' else 'text-danger' }}">
+                                {{ '+' if t.category_type == 'Income' else '-' }}{{ t.amount }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 3: SETTINGS (Settings Content) ==================== -->
+        <div id="settings" class="content-section">
+            <header style="margin-bottom: 30px;"><h1>Settings</h1></header>
+            
+            <!-- Global Prefs -->
+            <div class="form-card" style="margin-bottom: 20px;">
+                <h2>Preferences</h2>
+                <form action="{{ url_for('update_user_currency') }}" method="POST" style="margin-top: 15px;">
                     <div class="form-group">
-                        <label>Amount</label>
-                        <!-- IMPORTANT: name="amount" lets Python see the number -->
-                        <input type="number" name="amount" placeholder="0.00" step="0.01" required>
+                        <label>Display Currency</label>
+                        <div style="display: flex; gap: 10px;">
+                            <select name="default_currency">
+                                <option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
+                            </select>
+                            <button type="submit" class="btn-primary" style="width: auto;">Save</button>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Account</label>
-                        <!-- IMPORTANT: name="account_id" -->
-                        <select name="account_id">
-                            {% for acc in accounts %}
-                                <option value="{{ acc.account_id }}">{{ acc.account_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Category</label>
-                        <!-- IMPORTANT: name="category_id" -->
-                        <select name="category_id">
-                            {% for cat in categories %}
-                                <option value="{{ cat.category_id }}">{{ cat.name }} ({{ cat.type }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Note</label>
-                        <!-- IMPORTANT: name="note" -->
-                        <input type="text" name="note" placeholder="Description...">
-                    </div>
-                    <button type="submit" class="btn-primary">Add Transaction</button>
                 </form>
             </div>
+
+            <div class="grid-2-col">
+                <!-- Add Account -->
+                <div class="form-card">
+                    <h2>Add Account</h2>
+                    <form action="{{ url_for('add_account') }}" method="POST">
+                        <div class="form-group"><label>Name</label><input type="text" name="account_name" required></div>
+                        <div class="form-group"><label>Currency</label>
+                            <select name="currency"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+                        </div>
+                        <div class="form-group"><label>Type</label>
+                            <select name="account_type"><option value="Bank">Bank</option><option value="Cash">Cash</option><option value="Credit">Credit</option></select>
+                        </div>
+                        <div class="form-group"><label>Balance</label><input type="number" name="initial_balance" step="0.01"></div>
+                        <button type="submit" class="btn-primary">Create</button>
+                    </form>
+                </div>
+
+                <!-- Add Category -->
+                <div class="form-card">
+                    <h2>Add Category</h2>
+                    <form action="{{ url_for('add_category') }}" method="POST">
+                        <div class="form-group"><label>Name</label><input type="text" name="category_name" required></div>
+                        <div class="form-group"><label>Type</label>
+                            <select name="category_type"><option value="Expense">Expense</option><option value="Income">Income</option></select>
+                        </div>
+                        <button type="submit" class="btn-primary">Add</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Manage Lists -->
+            <div class="grid-2-col" style="margin-top: 20px;">
+                <div class="form-card">
+                    <h3>Your Accounts</h3>
+                    <ul style="list-style: none; margin-top: 10px;">
+                        {% for acc in accounts %}
+                        <li style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                            {{ acc.account_name }} ({{ acc.currency }})
+                            <a href="{{ url_for('delete_account', id=acc.account_id) }}" style="color: #EF4444; text-decoration: none;">🗑</a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="form-card">
+                    <h3>Your Categories</h3>
+                    <ul style="list-style: none; margin-top: 10px;">
+                        {% for cat in categories %}
+                        <li style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                            {{ cat.name }}
+                            <a href="{{ url_for('delete_category', id=cat.category_id) }}" style="color: #EF4444; text-decoration: none;">🗑</a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
     </main>
 
+    <!-- JAVASCRIPT TO HANDLE TAB SWITCHING -->
+    <script>
+        // Function to show specific section
+        function showSection(id) {
+            // 1. Hide all sections
+            document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+            // 2. Remove active state from all buttons
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            
+            // 3. Show target section
+            document.getElementById(id).classList.add('active');
+            
+            // 4. Highlight the corresponding button
+            const buttons = document.querySelectorAll('.nav-btn');
+            if(id==='dashboard') buttons[0].classList.add('active');
+            else if(id==='transactions') buttons[1].classList.add('active');
+            else if(id==='settings') buttons[2].classList.add('active');
+            
+            // 5. Save preference to LocalStorage so it remembers the tab on refresh
+            localStorage.setItem('activeTab', id);
+        }
+
+        // On Load: Check if we have a saved tab (e.g. after a form redirect)
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Get the current URL path to check if we were redirected from a settings action
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // If we were just redirected (e.g., from adding an account) or have a saved tab, show it.
+            const savedTab = localStorage.getItem('activeTab') || 'dashboard';
+            
+            // Default to dashboard, then check saved state
+            showSection(savedTab);
+        });
+    </script>
 </body>
 </html>
