@@ -204,7 +204,7 @@ def home():
         # Use our new conversion function
         converted_amount = convert_currency_with_rates(t['amount'], trans_currency, live_rates)
         
-        if t['category_type'] == 'Income':
+        if t['category_type'] == 'Income' and t['name']!='Initial Balance':
             income += converted_amount
             total_balance += converted_amount
         else:
