@@ -1,17 +1,15 @@
 import requests
 import os
 import time
-from flask import Flask, render_template, request, redirect, url_for, flash, g
+from flask import Flask, render_template, request, redirect, url_for, flash, g 
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import get_db_connection, initialize_all_tables, get_user_transactions
+from database import get_db_connection, initialize_all_tables, get_user_transactions 
 import mysql.connector
 from urllib.parse import urlparse
 
-
-
 app=Flask(__name__)
-app.secret_key="MEN BU YERDE YA;ALMADIM" #Essential for security
+app.secret_key="MEN BU YERDE YA;ALMADIM" 
 
 #---Login Manager Setup---
 login_manager=LoginManager()
@@ -24,85 +22,75 @@ class User(UserMixin):
         self.username=username
         self.password_hash=password_hash
 
+# --- CONNECTION POOL MANAGEMENT (CRITICAL FOR SPEED) ---
+def get_db():
+    """Returns the cached pooled database connection for the current request."""
+    # Check if 'db' connection already exists in the request context (g)
+    if 'db' not in g:
+        # If not, get one from the pool (fast) and store it.
+        g.db = get_db_connection() 
+    return g.db
+
 @app.before_request
 def before_request():
-    """Runs before every request to initialize the connection pool usage."""
-    g.db = None # Initialize connection store for this request
+    """Initializes the connection store before every request."""
+    g.db = None 
 
 @app.teardown_request
 def teardown_request(exception):
-    """Runs after every request to close the connection and return it to the pool."""
+    """Closes (returns to pool) the connection after every request."""
     db = g.pop('db', None)
     if db is not None:
-        db.close() # Returns the connection to the pool
+        db.close() # This returns the connection to the pool
 
-# --- load_user Function (OPTIMIZED) ---
+# --- load_user Function ---
 @login_manager.user_loader
 def load_user(user_id):
     try:
-        # Use get_db() to get the connection for this request
+        # Use the request connection
         conn = get_db() 
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
         user_data = cursor.fetchone()
         cursor.close()
-        # conn.close() # REMOVED: Teardown will close it automatically
+        # conn.close() is handled by teardown
         if user_data:
             return User(user_data['user_id'], user_data['username'], user_data['password_hash'])
     except Exception as e:
         print(f"DB Error in load_user: {e}")
     return None
 
-
-def get_db():
-    """Returns the cached pooled database connection."""
-    if 'db' not in g:
-        # Get a connection from the pool and store it in Flask's request context (g)
-        g.db = get_db_connection() 
-    return g.db
 # --- CURRENCY API LOGIC ---
 RATE_CACHE={}
-CACHE_DURATION=3600*24 #Rates updated evry 24 hours
+CACHE_DURATION=3600*24 # Rates updated every 24 hours
 
 def get_live_rates(base_currency):
-    """
-    Fetches rates from API only if cache is expired or missing.
-    """
+    """Fetches rates using cache with stale fallback."""
     current_time = time.time()
     
-    # 1. Check Cache
     if base_currency in RATE_CACHE:
         cached_data = RATE_CACHE[base_currency]
-        # If data is less than 1 hour old, use it
         if current_time - cached_data['timestamp'] < CACHE_DURATION:
-            # print("Using Cached Rates") # Uncomment for debugging
             return cached_data['rates']
 
-    # 2. Fetch from API (If not in cache)
     try:
-        # print("Fetching New Rates from API...") # Uncomment for debugging
         url = f"https://api.frankfurter.app/latest?from={base_currency}"
-        response = requests.get(url, timeout=5) # Add timeout to prevent hanging
+        response = requests.get(url, timeout=5)
         data = response.json()
         
         rates = data.get('rates', {})
         rates[base_currency] = 1.0 
         
-        # Save to Cache
-        RATE_CACHE[base_currency] = {
-            'rates': rates,
-            'timestamp': current_time
-        }
+        RATE_CACHE[base_currency] = {'rates': rates, 'timestamp': current_time}
         
         return rates
     except Exception as e:
         print(f"API Error: {e}")
-        # 3. Fallback to STALE Cache (if available)
+        
         if base_currency in RATE_CACHE:
             print("⚠️ API Failed. Using Stale Cache.")
             return RATE_CACHE[base_currency]['rates']
             
-        # 4. Total Failure (Hardcoded)
         print("⚠️ API Failed & No Cache. Using Hardcoded defaults.")
         return {base_currency: 1.0, 'USD': 0.03, 'EUR': 0.029, 'TRY': 1.0}
 
@@ -117,6 +105,8 @@ def seed_data(user_id):
     """Creates default Account and Categories if they don't exist."""
     conn = get_db()
     cursor = conn.cursor(buffered=True, dictionary=True) 
+    
+    # Note: conn.commit() is still needed inside seed_data, but conn.close() is removed.
     
     cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (user_id,))
     if not cursor.fetchone():
@@ -133,47 +123,7 @@ def seed_data(user_id):
     
     cursor.close()
 
-
-@app.route('/update_user_currency', methods=['POST'])
-@login_required
-def update_user_currency():
-    new_currency = request.form.get('default_currency')
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("UPDATE users SET default_currency = %s WHERE user_id = %s", (new_currency, current_user.id))
-    conn.commit()
-    flash("Default currency updated!")
-    return redirect(url_for('home'))
-
-@app.route('/delete_account/<int:id>')
-@login_required
-def delete_account(id):
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-        # Delete linked transactions first (or use ON DELETE CASCADE in SQL)
-        cursor.execute("DELETE FROM transactions WHERE account_id = %s AND user_id = %s", (id, current_user.id))
-        cursor.execute("DELETE FROM accounts WHERE account_id = %s AND user_id = %s", (id, current_user.id))
-        conn.commit()
-        flash("Account deleted!")
-    except Exception as e:
-        flash(f"Error deleting account: {e}")
-    return redirect(url_for('home'))
-
-@app.route('/delete_category/<int:id>')
-@login_required
-def delete_category(id):
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("DELETE FROM transactions WHERE category_id = %s AND user_id = %s", (id, current_user.id))
-        cursor.execute("DELETE FROM categories WHERE category_id = %s AND user_id = %s", (id, current_user.id))
-        conn.commit()
-        flash("Category deleted!")
-    except Exception as e:
-        flash(f"Error deleting category: {e}")
-    return redirect(url_for('home'))
-
+# --- THE SUPER ROUTE (OPTIMIZED HOME) ---
 @app.route('/')
 @login_required
 def home():
@@ -191,15 +141,15 @@ def home():
     accounts = cursor.fetchall()
     cursor.execute("SELECT * FROM categories WHERE user_id = %s AND name!='Initial Balance'", (current_user.id,))
     categories = cursor.fetchall()
-
-    # 3. CALL THE API ONCE HERE
-    # Get all rates relative to the user's preferred currency
+    
+    # 3. Live Rates
     live_rates = get_live_rates(user_currency)
 
-    # 4. Filter Transactions (Logic from before)
+    # 4. Transactions Logic
     all_transactions = get_user_transactions(current_user.id)
-    filter_account_id = request.args.get('account_id')
     
+    # Filter for Dashboard Stats
+    filter_account_id = request.args.get('account_id')
     if filter_account_id and filter_account_id != 'all':
         transactions = [t for t in all_transactions if str(t['account_id']) == filter_account_id]
     else:
@@ -219,6 +169,7 @@ def home():
         
         # Use our new conversion function
         converted_amount = convert_currency_with_rates(t['amount'], trans_currency, live_rates)
+        
         if t['category_name']=='Initial Balance':
             total_balance+=converted_amount
         elif t['category_type'] == 'Income':
@@ -276,6 +227,7 @@ def login():
         if user_data and check_password_hash(user_data['password_hash'], password):
             user = User(user_data['user_id'], user_data['username'], user_data['password_hash'])
             login_user(user)
+            seed_data(user.id) # Seed data only on successful login
             return redirect(url_for('home'))
         else:
             flash('Invalid username or password')
@@ -290,7 +242,7 @@ def register():
         hashed_password = generate_password_hash(password)
         
         conn = get_db()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         try:
             cursor.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)", (username, hashed_password))
             conn.commit()
@@ -298,6 +250,8 @@ def register():
             return redirect(url_for('login'))
         except mysql.connector.Error as err:
             flash(f"Error: {err}")
+        finally:
+            cursor.close()
             
     return render_template('register.html')
 
@@ -307,11 +261,12 @@ def add_account():
     try:
         name = request.form.get('account_name')
         acc_type = request.form.get('account_type')
-        currency = request.form.get('currency') # NEW FIELD
+        currency = request.form.get('currency') 
         balance = float(request.form.get('initial_balance', 0))
         
         conn = get_db()
-        cursor = conn.cursor(dictionary=True)
+        # FIX: Ensure dictionary=True is used for name access
+        cursor = conn.cursor(buffered=True, dictionary=True) 
         cursor.execute("""
             INSERT INTO accounts (user_id, account_name, account_type, current_balance, currency)
             VALUES (%s, %s, %s, %s, %s)
@@ -335,6 +290,7 @@ def add_account():
                 INSERT INTO transactions (user_id, account_id, category_id, amount, transaction_date, note)
                 VALUES (%s, %s, %s, %s, NOW(), 'Opening Balance')
             """, (current_user.id, new_account_id, category_id, balance))
+        
         conn.commit()
         flash(f"Account '{name}' created!")
     except Exception as e:
@@ -347,7 +303,7 @@ def add_account():
 def add_category():
     try:
         name = request.form.get('category_name')
-        cat_type = request.form.get('category_type') # 'Income' or 'Expense'
+        cat_type = request.form.get('category_type') 
         
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
@@ -360,7 +316,35 @@ def add_category():
     except Exception as e:
         flash(f"Error adding category: {e}")
         
-    return redirect(url_for('settings'))
+    return redirect(url_for('home'))
+
+@app.route('/delete_account/<int:id>')
+@login_required
+def delete_account(id):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM transactions WHERE account_id = %s AND user_id = %s", (id, current_user.id))
+        cursor.execute("DELETE FROM accounts WHERE account_id = %s AND user_id = %s", (id, current_user.id))
+        conn.commit()
+        flash("Account deleted!")
+    except Exception as e:
+        flash(f"Error deleting account: {e}")
+    return redirect(url_for('home'))
+
+@app.route('/delete_category/<int:id>')
+@login_required
+def delete_category(id):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM transactions WHERE category_id = %s AND user_id = %s", (id, current_user.id))
+        cursor.execute("DELETE FROM categories WHERE category_id = %s AND user_id = %s", (id, current_user.id))
+        conn.commit()
+        flash("Category deleted!")
+    except Exception as e:
+        flash(f"Error deleting category: {e}")
+    return redirect(url_for('home'))
 
 @app.route('/logout')
 @login_required
@@ -370,46 +354,47 @@ def logout():
 
 @app.route('/init_db')
 def init_db():
-    if initialize_all_tables():
-        # You need to temporarily run the Users table creation as well, 
-        # as it was previously inside this route.
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id INT AUTO_INCREMENT PRIMARY KEY,
-                username VARCHAR(50) NOT NULL UNIQUE,
-                password_hash VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        conn.commit()
+    # We still need to call the initialization function from database.py
+    conn = get_db_connection()
+    # The connection needs to be closed manually here since we use get_db_connection() outside of app context
+    try:
+        if initialize_all_tables():
+            # And manually create the users table here
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
+            return "Database Tables (Users, Accounts, Categories, Transactions) Created Successfully!"
+        return "Database Initialization Failed. Check logs."
+    finally:
         conn.close()
 
-        return "Database Tables (Users, Accounts, Categories, Transactions) Created Successfully!"
-    return "Database Initialization Failed. Check logs."
-# app.py - Add this temporary migration route
 
-#Currency migration func:
 @app.route('/migrate_currency')
 @login_required
 def migrate_currency():
-    conn = get_db_connection()
+    # NOTE: This route should typically be removed after running once.
+    # We use get_db() inside the request context.
+    conn = get_db()
     cursor = conn.cursor()
     messages = []
 
-    # 1. Try adding to USERS table
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN default_currency VARCHAR(3) DEFAULT 'TRY'")
         conn.commit()
         messages.append("✅ Success: Added 'default_currency' to USERS table.")
     except mysql.connector.Error as e:
-        if e.errno == 1060: # Error 1060 means "Duplicate column name"
+        if e.errno == 1060: 
             messages.append("ℹ️ Note: USERS table already had the column (Skipped).")
         else:
             messages.append(f"❌ Error on USERS table: {e}")
 
-    # 2. Try adding to ACCOUNTS table
     try:
         cursor.execute("ALTER TABLE accounts ADD COLUMN currency VARCHAR(3) DEFAULT 'TRY'")
         conn.commit()
@@ -420,7 +405,6 @@ def migrate_currency():
         else:
             messages.append(f"❌ Error on ACCOUNTS table: {e}")
 
-    conn.close()
     return "<br>".join(messages)
 
 if __name__=='__main__':
