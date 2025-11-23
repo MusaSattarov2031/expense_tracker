@@ -1,5 +1,6 @@
 import requests
 import os
+import time
 from flask import Flask, render_template, request, redirect, url_for, flash 
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -39,56 +40,54 @@ def load_user(user_id):
     return None     
 
 # --- CURRENCY API LOGIC ---
+RATE_CACHE={}
+CACHE_DURATION=3600*24 #Rates updated evry 24 hours
+
 def get_live_rates(base_currency):
     """
-    Fetches exchange rates from the free Frankfurter API.
-    Example URL: https://api.frankfurter.app/latest?from=TRY
-    Returns a dictionary: {'USD': 0.03, 'EUR': 0.028, ...}
+    Fetches rates from API only if cache is expired or missing.
     """
+    current_time = time.time()
+    
+    # 1. Check Cache
+    if base_currency in RATE_CACHE:
+        cached_data = RATE_CACHE[base_currency]
+        # If data is less than 1 hour old, use it
+        if current_time - cached_data['timestamp'] < CACHE_DURATION:
+            # print("Using Cached Rates") # Uncomment for debugging
+            return cached_data['rates']
+
+    # 2. Fetch from API (If not in cache)
     try:
-        # We request rates with the user's currency as the "Base"
+        # print("Fetching New Rates from API...") # Uncomment for debugging
         url = f"https://api.frankfurter.app/latest?from={base_currency}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=5) # Add timeout to prevent hanging
         data = response.json()
         
-        # The API returns rates relative to the base. 
-        # e.g. if Base is TRY, USD might be 0.029
         rates = data.get('rates', {})
-        
-        # Add the base currency itself (1 to 1) so lookups don't fail
         rates[base_currency] = 1.0 
+        
+        # Save to Cache
+        RATE_CACHE[base_currency] = {
+            'rates': rates,
+            'timestamp': current_time
+        }
         
         return rates
     except Exception as e:
         print(f"API Error: {e}")
-        # Fallback if API is down: Return empty dict or hardcoded safety values
+        # 3. Fallback to STALE Cache (if available)
+        if base_currency in RATE_CACHE:
+            print("⚠️ API Failed. Using Stale Cache.")
+            return RATE_CACHE[base_currency]['rates']
+            
+        # 4. Total Failure (Hardcoded)
+        print("⚠️ API Failed & No Cache. Using Hardcoded defaults.")
         return {base_currency: 1.0, 'USD': 0.03, 'EUR': 0.029, 'TRY': 1.0}
 
 def convert_currency_with_rates(amount, from_curr, rates_dict):
-    """
-    Converts amount using a pre-fetched dictionary of rates.
-    """
     if from_curr not in rates_dict:
-        return amount # If currency not found, keep original amount
-        
-    # Logic: Since 'rates_dict' is based on the User's Default Currency,
-    # we just need to divide by the rate? No, wait.
-    # If Base = TRY. 
-    # API says: USD = 0.029 (1 TRY = 0.029 USD).
-    # Wait, Frankfurter 'from' gives you the value of 1 Unit of Base.
-    
-    # Let's use a safer approach: Convert everything to EUR (Frankfurter default) then to Target.
-    # Actually, the simplest way with Frankfurter:
-    # If I have 100 USD and I want TRY.
-    # If I fetch rates with ?from=USD, I get TRY rate directly.
-    
-    # OPTIMIZATION: To avoid calling API for every transaction, 
-    # we will fetch ?from=USER_DEFAULT_CURRENCY.
-    # Then: 
-    # Rate for USD will be: How many USD is 1 UserCurrency.
-    # So if I have 50 USD, and Rate is 0.03 (1 TRY = 0.03 USD).
-    # Amount in TRY = 50 / 0.03
-    
+        return amount 
     rate = rates_dict.get(from_curr, 1.0)
     if rate == 0: return amount
     return round(float(amount) / rate, 2)
@@ -96,27 +95,24 @@ def convert_currency_with_rates(amount, from_curr, rates_dict):
 def seed_data(user_id):
     """Creates default Account and Categories if they don't exist."""
     conn = get_db_connection()
-    
-    # FIX: Add buffered=True to prevent 'Unread result found' errors
     cursor = conn.cursor(buffered=True) 
     
-    # 1. Create a default 'Cash' account
     cursor.execute("SELECT * FROM accounts WHERE user_id = %s", (user_id,))
     if not cursor.fetchone():
-        cursor.execute("INSERT INTO accounts (user_id, account_name, account_type, current_balance) VALUES (%s, 'Cash', 'Cash', 0)", (user_id,))
-        cursor.execute("INSERT INTO accounts (user_id, account_name, account_type, current_balance) VALUES (%s, 'Bank', 'Bank', 0)", (user_id,))
-        conn.commit() # Commit changes immediately after inserting
+        cursor.execute("INSERT INTO accounts (user_id, account_name, account_type, current_balance, currency) VALUES (%s, 'Cash', 'Cash', 0, 'TRY')", (user_id,))
+        cursor.execute("INSERT INTO accounts (user_id, account_name, account_type, current_balance, currency) VALUES (%s, 'Bank', 'Bank', 0, 'TRY')", (user_id,))
+        conn.commit() 
 
-    # 2. Create default Categories
     cursor.execute("SELECT * FROM categories WHERE user_id = %s", (user_id,))
     if not cursor.fetchone():
-        defaults = [('Food', 'Expense'), ('Rent', 'Expense'), ('Salary', 'Income'), ('Fun', 'Expense'), ('Initial Balance', 'Income')]
+        defaults = [('Initial Balance', 'Income'), ('Food', 'Expense'), ('Rent', 'Expense'), ('Salary', 'Income'), ('Fun', 'Expense')]
         for name, type in defaults:
             cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (user_id, name, type))
-        conn.commit() # Commit changes immediately after inserting
+        conn.commit() 
     
     cursor.close()
     conn.close()
+
 
 @app.route('/update_user_currency', methods=['POST'])
 @login_required
@@ -152,9 +148,6 @@ def delete_category(id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Set transactions to a default category or delete them? 
-        # For now, let's just delete the category. Note: This might break transactions linked to it if not handled.
-        # Ideally, we check if it's being used first.
         cursor.execute("DELETE FROM transactions WHERE category_id = %s AND user_id = %s", (id, current_user.id))
         cursor.execute("DELETE FROM categories WHERE category_id = %s AND user_id = %s", (id, current_user.id))
         conn.commit()
@@ -167,7 +160,6 @@ def delete_category(id):
 @app.route('/')
 @login_required
 def home():
-    seed_data(current_user.id)
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
