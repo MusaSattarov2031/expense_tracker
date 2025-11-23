@@ -322,7 +322,7 @@ def add_account():
         balance = float(request.form.get('initial_balance', 0))
         
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(buffered=True, dictionary=True)
         cursor.execute("""
             INSERT INTO accounts (user_id, account_name, account_type, current_balance, currency)
             VALUES (%s, %s, %s, %s, %s)
