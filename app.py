@@ -194,18 +194,18 @@ def home():
             total_balance += converted_amount
             # Also update the specific account's balance
             if t['account_id'] in account_balances:
-                account_balances[t['account_id']] += t['amount']
+                account_balances[t['account_id']] += float(t['amount'])
                 
         elif t['category_type'] == 'Income':
             income += converted_amount
             total_balance += converted_amount
             if t['account_id'] in account_balances:
-                account_balances[t['account_id']] += t['amount']
+                account_balances[t['account_id']] += float(t['amount'])
         else:
             expense += converted_amount
             total_balance -= converted_amount
             if t['account_id'] in account_balances:
-                account_balances[t['account_id']] -= t['amount']
+                account_balances[t['account_id']] -= float(t['amount'])
 
     # B. Inject the calculated balance back into the accounts list
     for acc in accounts:
