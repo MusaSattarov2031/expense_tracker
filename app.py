@@ -1,7 +1,7 @@
 import requests
 import os
 import time
-from flask import Flask, render_template, request, redirect, url_for, flash, g
+from flask import Flask, render_template, request, redirect, url_for, flash, g, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection, initialize_all_tables, get_user_transactions
@@ -64,6 +64,47 @@ def load_user(user_id):
 # --- CURRENCY CACHE ---
 RATE_CACHE = {}
 CACHE_DURATION = 3600 * 24 
+
+@app.route('/api/batch_add_transactions', methods=['POST'])
+@login_required
+def batch_add_transactions():
+    try:
+        data = request.get_json() # Get the JSON list sent from frontend
+        transactions = data.get('transactions', [])
+        
+        if not transactions:
+            return jsonify({'status': 'error', 'message': 'No transactions received'}), 400
+
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        # Prepared statement for efficiency
+        sql = """
+            INSERT INTO transactions (user_id, account_id, category_id, amount, transaction_date, note)
+            VALUES (%s, %s, %s, %s, NOW(), %s)
+        """
+        
+        # Create a list of tuples for executemany
+        values = []
+        for t in transactions:
+            values.append((
+                current_user.id,
+                t['account_id'],
+                t['category_id'],
+                float(t['amount']),
+                t['note']
+            ))
+            
+        # Execute all inserts in one go (Very Fast!)
+        cursor.executemany(sql, values)
+        conn.commit()
+        
+        return jsonify({'status': 'success', 'count': len(values)})
+        
+    except Exception as e:
+        print(f"Batch Error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 def get_live_rates(base_currency):
     current_time = time.time()

@@ -106,24 +106,157 @@
                 <div class="card" style="display: flex; align-items: center; justify-content: center; min-height: 300px;">
                     <p style="color: #9CA3AF;">[ Charts Placeholder ]</p>
                 </div>
+                                <!-- NEW BATCH ENTRY FORM -->
                 <div class="input-form">
-                    <h3>Quick Add</h3>
-                    <form action="{{ url_for('add_transaction') }}" method="POST">
-                        <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" required></div>
-                        <div class="form-group"><label>Account</label>
-                            <select name="account_id">
-                                {% for acc in accounts %}<option value="{{ acc.account_id }}">{{ acc.account_name }}</option>{% endfor %}
+                    <h3>Batch Entry</h3>
+                    
+                    <!-- Entry Inputs -->
+                    <div class="grid-2-col" style="gap: 10px; margin-bottom: 10px;">
+                        <div class="form-group">
+                            <input type="number" id="batch_amount" placeholder="Amount" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <select id="batch_account">
+                                {% for acc in accounts %}
+                                    <option value="{{ acc.account_id }}">{{ acc.account_name }}</option>
+                                {% endfor %}
                             </select>
                         </div>
-                        <div class="form-group"><label>Category</label>
-                            <select name="category_id">
-                                {% for cat in categories %}<option value="{{ cat.category_id }}">{{ cat.name }}</option>{% endfor %}
+                    </div>
+                    <div class="grid-2-col" style="gap: 10px; margin-bottom: 10px;">
+                        <div class="form-group">
+                            <select id="batch_category">
+                                {% for cat in categories %}
+                                    <option value="{{ cat.category_id }}">{{ cat.name }}</option>
+                                {% endfor %}
                             </select>
                         </div>
-                        <div class="form-group"><label>Note</label><input type="text" name="note" placeholder="Optional"></div>
-                        <button type="submit" class="btn-primary">Add Transaction</button>
-                    </form>
+                        <div class="form-group">
+                            <input type="text" id="batch_note" placeholder="Note...">
+                        </div>
+                    </div>
+                    
+                    <!-- Local Action Button -->
+                    <button type="button" onclick="addToPool()" class="btn-primary" style="background-color: #6B7280; margin-bottom: 20px;">+ Add to List</button>
+
+                    <!-- Staging Table (Hidden if empty) -->
+                    <div id="staging-area" style="display: none; margin-bottom: 20px;">
+                        <h4 style="margin-bottom: 10px; color: var(--text-light);">Pending Transactions</h4>
+                        <table style="font-size: 0.9rem;">
+                            <thead>
+                                <tr>
+                                    <th>Acc</th>
+                                    <th>Cat</th>
+                                    <th>Amt</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pool-list">
+                                <!-- JS will add rows here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Commit Button -->
+                    <button type="button" id="btn-commit" onclick="commitBatch()" class="btn-primary" style="display: none;">Save All Transactions</button>
                 </div>
+
+                <!-- JAVASCRIPT FOR BATCH LOGIC -->
+                <script>
+                    let transactionPool = [];
+
+                    function addToPool() {
+                        // 1. Get values from inputs
+                        const amt = document.getElementById('batch_amount').value;
+                        const accId = document.getElementById('batch_account').value;
+                        const accName = document.getElementById('batch_account').options[document.getElementById('batch_account').selectedIndex].text;
+                        const catId = document.getElementById('batch_category').value;
+                        const catName = document.getElementById('batch_category').options[document.getElementById('batch_category').selectedIndex].text;
+                        const note = document.getElementById('batch_note').value;
+
+                        if (!amt) return alert("Please enter an amount");
+
+                        // 2. Add to JS Array
+                        transactionPool.push({
+                            amount: amt,
+                            account_id: accId,
+                            category_id: catId,
+                            note: note,
+                            // Extra fields for display only
+                            displayAcc: accName,
+                            displayCat: catName
+                        });
+
+                        // 3. Update UI
+                        renderPool();
+                        
+                        // 4. Reset Input (Focus on amount for rapid entry)
+                        document.getElementById('batch_amount').value = '';
+                        document.getElementById('batch_note').value = '';
+                        document.getElementById('batch_amount').focus();
+                    }
+
+                    function renderPool() {
+                        const tbody = document.getElementById('pool-list');
+                        tbody.innerHTML = '';
+
+                        transactionPool.forEach((t, index) => {
+                            tbody.innerHTML += `
+                                <tr>
+                                    <td>${t.displayAcc}</td>
+                                    <td>${t.displayCat}</td>
+                                    <td>${t.amount}</td>
+                                    <td><button onclick="removeFromPool(${index})" style="color: red; border: none; background: none; cursor: pointer;">✕</button></td>
+                                </tr>
+                            `;
+                        });
+
+                        // Show/Hide Staging Area
+                        const hasItems = transactionPool.length > 0;
+                        document.getElementById('staging-area').style.display = hasItems ? 'block' : 'none';
+                        document.getElementById('btn-commit').style.display = hasItems ? 'block' : 'none';
+                        document.getElementById('btn-commit').innerText = `Save ${transactionPool.length} Transactions`;
+                    }
+
+                    function removeFromPool(index) {
+                        transactionPool.splice(index, 1);
+                        renderPool();
+                    }
+
+                    async function commitBatch() {
+                        if (transactionPool.length === 0) return;
+
+                        const btn = document.getElementById('btn-commit');
+                        btn.innerText = "Saving...";
+                        btn.disabled = true;
+
+                        try {
+                            const response = await fetch('/api/batch_add_transactions', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ transactions: transactionPool })
+                            });
+
+                            const result = await response.json();
+
+                            if (result.status === 'success') {
+                                // Success! Clear pool and refresh to show new data
+                                transactionPool = [];
+                                window.location.reload(); 
+                            } else {
+                                alert("Error saving: " + result.message);
+                                btn.disabled = false;
+                                btn.innerText = "Try Again";
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert("Network error. Check console.");
+                            btn.disabled = false;
+                        }
+                    }
+                </script>
             </section>
         </div>
 

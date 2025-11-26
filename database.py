@@ -60,8 +60,6 @@ def get_db_connection():
         print(f"Error getting connection from pool: {e}")
         raise e
 
-# --- Keep existing functions (ensure they use get_db_connection()) ---
-
 def initialize_all_tables():
     conn = None
     try:
