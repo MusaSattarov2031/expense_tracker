@@ -182,6 +182,35 @@ def home():
     income = 0
     expense = 0
     acc_currency_map = {acc['account_id']: acc['currency'] for acc in accounts}
+    # We initialize a dictionary to track balance for each account in its OWN currency
+    account_balances = {acc['account_id']: 0.0 for acc in accounts}
+
+    for t in all_transactions:
+        # A. Update Global Stats (Converted to Default Currency)
+        trans_currency = acc_currency_map.get(t['account_id'], 'TRY')
+        converted_amount = convert_currency_with_rates(t['amount'], trans_currency, live_rates)
+        
+        if t['category_name'] == 'Initial Balance':
+            total_balance += converted_amount
+            # Also update the specific account's balance
+            if t['account_id'] in account_balances:
+                account_balances[t['account_id']] += t['amount']
+                
+        elif t['category_type'] == 'Income':
+            income += converted_amount
+            total_balance += converted_amount
+            if t['account_id'] in account_balances:
+                account_balances[t['account_id']] += t['amount']
+        else:
+            expense += converted_amount
+            total_balance -= converted_amount
+            if t['account_id'] in account_balances:
+                account_balances[t['account_id']] -= t['amount']
+
+    # B. Inject the calculated balance back into the accounts list
+    for acc in accounts:
+        # Overwrite the static DB value with the calculated real-time value
+        acc['current_balance'] = round(account_balances.get(acc['account_id'], 0), 2)
 
     for t in transactions:
         trans_currency = acc_currency_map.get(t['account_id'], 'TRY')
