@@ -53,6 +53,27 @@
             .main-content { margin-left: 0; padding-bottom: 80px; }
             .grid-2-col { grid-template-columns: 1fr; }
         }
+        /* Calculator Styles */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .calc-grid button {
+            padding: 15px;
+            font-size: 1.2rem;
+            border: 1px solid #E5E7EB;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .calc-grid button:hover { background-color: #F3F4F6; transform: translateY(-1px); }
+        .calc-grid button:active { transform: translateY(1px); }
+        .calc-grid .op-btn { background-color: #EEF2FF; color: var(--primary); font-weight: bold; }
+        .calc-grid .op-btn:hover { background-color: #E0E7FF; }
+        .calc-grid .clear-btn { background-color: #FEE2E2; color: var(--danger); }
+        .calc-grid .clear-btn:hover { background-color: #FECACA; }
     </style>
 </head>
 <body>
@@ -63,6 +84,7 @@
         <button class="nav-btn active" onclick="showSection('dashboard')">Dashboard</button>
         <button class="nav-btn" onclick="showSection('transactions')">History</button>
         <button class="nav-btn" onclick="showSection('settings')">Settings</button>
+        <button class="nav-btn" onclick="showSection('Tools')">Tools</button>
         <a href="{{ url_for('logout') }}" class="nav-btn" style="color: #EF4444;">Logout</a>
     </aside>
 
@@ -360,7 +382,106 @@
                 </div>
             </div>
         </div>
+        <div id="tools" class="content-section">
+        <header style="margin-bottom: 30px;"><h1>Utilities</h1></header>
 
+        <div class="grid-2-col">
+            
+            <div class="form-card">
+                <h3>Calculator</h3>
+                <input type="text" id="calc-display" readonly style="width: 100%; padding: 15px; font-size: 1.5rem; text-align: right; margin-bottom: 15px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+                
+                <div class="calc-grid">
+                    <button onclick="calcInput('7')">7</button>
+                    <button onclick="calcInput('8')">8</button>
+                    <button onclick="calcInput('9')">9</button>
+                    <button class="op-btn" onclick="calcInput('/')">÷</button>
+                    
+                    <button onclick="calcInput('4')">4</button>
+                    <button onclick="calcInput('5')">5</button>
+                    <button onclick="calcInput('6')">6</button>
+                    <button class="op-btn" onclick="calcInput('*')">×</button>
+                    
+                    <button onclick="calcInput('1')">1</button>
+                    <button onclick="calcInput('2')">2</button>
+                    <button onclick="calcInput('3')">3</button>
+                    <button class="op-btn" onclick="calcInput('-')">-</button>
+                    
+                    <button class="clear-btn" onclick="calcClear()">C</button>
+                    <button onclick="calcInput('0')">0</button>
+                    <button class="op-btn" onclick="calcResult()">=</button>
+                    <button class="op-btn" onclick="calcInput('+')">+</button>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <h3>Currency Converter</h3>
+                <div style="margin-top: 20px;">
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" id="conv-amount" value="1" oninput="convertCurrency()">
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>From</label>
+                            <select id="conv-from" onchange="convertCurrency()">
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="TRY">TRY</option>
+                                <option value="GBP">GBP</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; padding-top: 15px;">➡️</div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>To</label>
+                            <select id="conv-to" onchange="convertCurrency()">
+                                <option value="TRY" selected>TRY</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; background: #EEF2FF; border-radius: 8px; text-align: center;">
+                        <span style="color: #6B7280; font-size: 0.9rem;">Result:</span><br>
+                        <span id="conv-result" style="color: #4F46E5; font-size: 1.5rem; font-weight: bold;">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>Current Balances</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Account Name</th>
+                        <th>Type</th>
+                        <th>Currency</th>
+                        <th style="text-align: right;">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acc in accounts %}
+                    <tr>
+                        <td>{{ acc.account_name }}</td>
+                        <td><span class="category-tag">{{ acc.account_type }}</span></td>
+                        <td>{{ acc.currency }}</td>
+                        <td style="text-align: right; font-weight: bold;">{{ acc.current_balance }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="border-top: 2px solid #E5E7EB;">
+                        <td colspan="3" style="padding-top: 15px;"><strong>Total Net Worth (Approx. in {{ currency_symbol }})</strong></td>
+                        <td style="text-align: right; padding-top: 15px; color: var(--secondary); font-size: 1.2rem; font-weight: bold;">
+                            {{ total_balance }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
     </main>
 
     <!-- JAVASCRIPT TO HANDLE TAB SWITCHING -->
@@ -369,22 +490,24 @@
         function showSection(id) {
             // 1. Hide all sections
             document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+            
             // 2. Remove active state from all buttons
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             
             // 3. Show target section
             document.getElementById(id).classList.add('active');
             
-            // 4. Highlight the corresponding button
+            // 4. Highlight the correct button
+            // Note: We need to match buttons to IDs. 
+            // Button order: 0=Dashboard, 1=History, 2=Tools, 3=Settings
             const buttons = document.querySelectorAll('.nav-btn');
-            if(id==='dashboard') buttons[0].classList.add('active');
-            else if(id==='transactions') buttons[1].classList.add('active');
-            else if(id==='settings') buttons[2].classList.add('active');
+            if(id === 'dashboard') buttons[0].classList.add('active');
+            else if(id === 'transactions') buttons[1].classList.add('active');
+            else if(id === 'tools') buttons[2].classList.add('active'); // NEW
+            else if(id === 'settings') buttons[3].classList.add('active'); // Shifted down
             
-            // 5. Save preference to LocalStorage so it remembers the tab on refresh
             localStorage.setItem('activeTab', id);
         }
-
         // On Load: Check if we have a saved tab (e.g. after a form redirect)
         document.addEventListener('DOMContentLoaded', () => {
             // 1. Get the current URL path to check if we were redirected from a settings action
@@ -396,6 +519,64 @@
             // Default to dashboard, then check saved state
             showSection(savedTab);
         });
+        /* --- TOOLS LOGIC --- */
+
+        // Calculator
+        function calcInput(val) {
+            document.getElementById('calc-display').value += val;
+        }
+        function calcClear() {
+            document.getElementById('calc-display').value = '';
+        }
+        function calcResult() {
+            try {
+                const display = document.getElementById('calc-display');
+                display.value = Function('"use strict";return (' + display.value + ')')();
+            } catch (e) {
+                document.getElementById('calc-display').value = 'Error';
+            }
+        }
+
+        // Currency Converter (Fetch live rates on load)
+        let exchangeRates = {};
+
+        async function initConverter() {
+            try {
+                // Fetch rates relative to USD
+                const res = await fetch('https://api.frankfurter.app/latest?from=USD');
+                const data = await res.json();
+                exchangeRates = data.rates;
+                exchangeRates['USD'] = 1; 
+                convertCurrency();
+            } catch (error) {
+                console.error("Rate fetch failed", error);
+                document.getElementById('conv-result').innerText = "Offline";
+            }
+        }
+
+        function convertCurrency() {
+            const amt = parseFloat(document.getElementById('conv-amount').value) || 0;
+            const from = document.getElementById('conv-from').value;
+            const to = document.getElementById('conv-to').value;
+
+            if (Object.keys(exchangeRates).length === 0) return;
+
+            // Convert: (Amount / Rate of From) * Rate of To
+            // Note: API returns rates based on USD (since we requested ?from=USD)
+            const rateFrom = exchangeRates[from] || 1; 
+            const rateTo = exchangeRates[to] || 1;
+            
+            // Since base is USD:
+            // To get USD value: amount / rateFrom 
+            // Then multiply by rateTo
+            const result = (amt / rateFrom) * rateTo;
+
+            document.getElementById('conv-result').innerText = 
+                `${result.toFixed(2)} ${to}`;
+        }
+
+        // Start converter when page loads
+        document.addEventListener('DOMContentLoaded', initConverter);
     </script>
 </body>
 </html>
