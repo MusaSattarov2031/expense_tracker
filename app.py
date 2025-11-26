@@ -166,7 +166,7 @@ def home():
     accounts = cursor.fetchall()
     cursor.execute("SELECT * FROM categories WHERE user_id = %s AND name!='Initial Balance'", (current_user.id,))
     categories = cursor.fetchall()
-    conn.close() # Explicit close here is fine as it returns to pool early
+    #conn.close() # Explicit close here is fine as it returns to pool early
 
     live_rates = get_live_rates(user_currency)
     all_transactions = get_user_transactions(current_user.id)
